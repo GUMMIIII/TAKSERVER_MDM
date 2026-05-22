@@ -183,7 +183,7 @@ PASS=${TAK_CERT_PASS}
 DIR=files
 
 SUBJBASE="/C=\${COUNTRY}/"
-[ -n "\${STATE}" ]             && SUBJBASE+="\${STATE}/"   || true
+[ -n "\${STATE}" ]             && SUBJBASE+="ST=\${STATE}/" || true
 [ -n "\${CITY}" ]              && SUBJBASE+="L=\${CITY}/"  || true
 [ -n "\${ORGANIZATION}" ]      && SUBJBASE+="O=\${ORGANIZATION}/" || true
 [ -n "\${ORGANIZATIONAL_UNIT}" ] && SUBJBASE+="OU=\${ORGANIZATIONAL_UNIT}/" || true
@@ -349,10 +349,10 @@ docker compose restart dnsmasq 2>/dev/null && ok "dnsmasq restarted (TAK DNAT ru
 if [[ -f "${TAK_DIR}/certs/files/admin.pem" ]]; then
     info "Waiting for TAKServer API to be ready..."
     _TAK_TRIES=0
-    until curl -k -s -o /dev/null "https://localhost:8443/index.html" 2>/dev/null; do
+    until bash -c "echo > /dev/tcp/localhost/8443" 2>/dev/null; do
         _TAK_TRIES=$((_TAK_TRIES + 1))
-        if [[ $_TAK_TRIES -ge 24 ]]; then
-            warn "TAKServer not ready after 2 min — certmod skipped, run manually later"
+        if [[ $_TAK_TRIES -ge 60 ]]; then
+            warn "TAKServer not ready after 5 min — certmod skipped, run manually later"
             break
         fi
         sleep 5
