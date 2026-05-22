@@ -144,6 +144,7 @@ if [[ "$DEPLOY_MODE" == "vps" ]]; then
     echo -e "    ${CYAN}mumble.${DOMAIN}${NC}"
     echo -e "    ${CYAN}tak.${DOMAIN}${NC}"
     echo -e "    ${CYAN}ldap.${DOMAIN}${NC}"
+    echo -e "    ${CYAN}office.${DOMAIN}${NC}"
     echo -e "  ${YELLOW}(Or use a wildcard: *.${DOMAIN} + ${DOMAIN})${NC}"
     echo ""
     if ! prompt_yn "Are all DNS records live and pointing to this server?" "n"; then
@@ -215,7 +216,8 @@ AUTHELIA_SESSION_SECRET=$(openssl rand -hex 32)
 AUTHELIA_STORAGE_ENCRYPTION_KEY=$(openssl rand -hex 32)
 AUTHELIA_OIDC_HMAC_SECRET=$(openssl rand -hex 32)
 NEXTCLOUD_OIDC_SECRET=$(openssl rand -hex 32)
-info "LLDAP + Authelia secrets auto-generated."
+COLLABORA_ADMIN_PASS=$(openssl rand -base64 18 | tr -d '=+/' | head -c 24)
+info "LLDAP + Authelia + Collabora secrets auto-generated."
 
 echo -e "\n  ${BOLD}── OpenVPN ──────────────────────────────────────────${NC}"
 info "VPN hostname/IP is written into every .ovpn profile distributed to users — must be reachable from the internet."
@@ -411,6 +413,9 @@ VPN_PORT="${VPN_PORT}"
 VPN_PROTO=udp
 VPN_SUBNET="${VPN_SUBNET}"
 VPN_MASK=255.255.255.0
+
+COLLABORA_ADMIN_USER=admin
+COLLABORA_ADMIN_PASS="${COLLABORA_ADMIN_PASS}"
 
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
 

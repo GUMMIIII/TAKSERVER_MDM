@@ -109,6 +109,7 @@ if [[ "$DEPLOY_MODE" == "vps" ]]; then
             -d "matrix.${DOMAIN}" \
             -d "element.${DOMAIN}" \
             -d "ldap.${DOMAIN}" \
+            -d "office.${DOMAIN}" \
             ${TAK_DOMAIN:+-d "${TAK_DOMAIN}"} \
             2>&1 | tee /tmp/certbot.log | grep -E "(Congratulations|Certificate|error|Error)" || true
         if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
@@ -349,7 +350,7 @@ cd "$SCRIPT_DIR"
 info "Building Synapse custom image (adds matrix-synapse-ldap3)..."
 docker compose build synapse --quiet
 
-_BASE_SERVICES="nginx postgres redis lldap authelia headwind openvpn synapse mumble nextcloud element-web"
+_BASE_SERVICES="nginx postgres redis lldap authelia headwind openvpn synapse mumble nextcloud element-web collabora"
 if [[ "$DEPLOY_MODE" == "vps" ]]; then
     info "Building dnsmasq image (VPS split-horizon DNS)..."
     docker compose build dnsmasq --quiet
@@ -464,6 +465,16 @@ cat > /etc/cron.d/komms-nextcloud << 'CRONEOF'
 CRONEOF
 chmod 644 /etc/cron.d/komms-nextcloud
 ok "Nextcloud cron job installed (/etc/cron.d/komms-nextcloud)"
+
+# Install and configure richdocuments (Collabora Online) if in VPS mode
+if [[ "$DEPLOY_MODE" == "vps" ]]; then
+    info "Installing Nextcloud richdocuments app (Collabora Office)..."
+    docker compose exec -T -u www-data nextcloud php occ app:install richdocuments >/dev/null 2>&1 || \
+        docker compose exec -T -u www-data nextcloud php occ app:enable  richdocuments >/dev/null 2>&1 || true
+    docker compose exec -T -u www-data nextcloud php occ config:app:set richdocuments wopi_url \
+        --value="https://office.${DOMAIN}" >/dev/null 2>&1 || true
+    ok "Nextcloud richdocuments: Collabora wopi_url=https://office.${DOMAIN}"
+fi
 
 # ── [7] Headwind MDM admin password ───────────────────────────────────────────
 step "[7/7] Setting Headwind MDM admin password"

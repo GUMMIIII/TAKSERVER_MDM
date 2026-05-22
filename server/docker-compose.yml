@@ -63,7 +63,7 @@ services:
 
   # ── Reverse Proxy ────────────────────────────────────────────────────────
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:stable-alpine
     container_name: komms_nginx
     restart: unless-stopped
     ports:
@@ -82,6 +82,7 @@ services:
           - cloud.${DOMAIN}
           - element.${DOMAIN}
           - matrix.${DOMAIN}
+          - office.${DOMAIN}
     depends_on:
       - authelia
       - headwind
@@ -89,6 +90,7 @@ services:
       - synapse
       - lldap
       - element-web
+      - collabora
 
   # ── Element Web (Matrix client) ──────────────────────────────────────────
   element-web:
@@ -289,6 +291,27 @@ services:
       - komms_internal
     environment:
       MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_SUPERUSER_PASS}
+
+  # ── Collabora Online (CODE) ──────────────────────────────────────────────
+  # Document editor backend for Nextcloud richdocuments.
+  # TLS terminated at nginx (office.DOMAIN); Collabora runs plain HTTP on 9980.
+  # No Authelia gate — WOPI tokens issued by Nextcloud handle auth.
+  collabora:
+    image: collabora/code:latest
+    container_name: komms_collabora
+    restart: unless-stopped
+    environment:
+      aliasgroup1: https://cloud.${DOMAIN}:443
+      extra_params: >-
+        --o:ssl.enable=false
+        --o:ssl.termination=true
+        --o:logging.level=warning
+      username: ${COLLABORA_ADMIN_USER:-admin}
+      password: ${COLLABORA_ADMIN_PASS}
+    cap_add:
+      - MKNOD
+    networks:
+      - komms_internal
 
   # ── Nextcloud ────────────────────────────────────────────────────────────
   nextcloud:

@@ -2,7 +2,7 @@
 
 Self-hosted secure communications platform with mobile device management for Android and Windows.
 
-**Services:** Authelia SSO · LLDAP · Nextcloud · Matrix/Synapse · Element · Headwind MDM · OpenVPN · TAKServer · Mumble  
+**Services:** Authelia SSO · LLDAP · Nextcloud · Collabora Online · Matrix/Synapse · Element · Headwind MDM · OpenVPN · TAKServer · Mumble  
 **Access model:** One login (LLDAP) → all services via Authelia SSO · VPN required for most services  
 **Scale:** Designed for small teams (< 50 devices)
 
@@ -19,6 +19,7 @@ Internet
 │                                                             │
 │  auth.domain     → Authelia SSO portal (login once)        │
 │  cloud.domain    → Nextcloud           [Authelia, no VPN]  │
+│  office.domain   → Collabora Online   [no VPN, WOPI auth]  │
 │  element.domain  → Element Web         [VPN + Authelia]    │
 │  matrix.domain   → Matrix/Synapse      [VPN only]          │
 │  mdm.domain      → Headwind MDM        [VPN + Authelia*]   │
@@ -94,6 +95,7 @@ sudo bash /opt/komms/server/setup_tak.sh
 |---------|-----|:---:|------|
 | Authelia portal | `https://auth.domain.com` | No | — |
 | Nextcloud | `https://cloud.domain.com` | No | Authelia (any user) |
+| Collabora Online | `https://office.domain.com` | No | WOPI token (via Nextcloud) |
 | Element Web | `https://element.domain.com` | **Yes** | Authelia (any user) |
 | Matrix | `https://matrix.domain.com` | **Yes** | Synapse native |
 | Headwind MDM | `https://mdm.domain.com` | **Yes** | Authelia (lldap_admin) |
