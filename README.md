@@ -67,7 +67,7 @@ VPN enforcement is handled by nginx (`geo $vpn_ip`) — VPN-required services re
 ### Prerequisites
 
 1. Fresh **Ubuntu 22.04/24.04**, **Debian 12**, or **Raspberry Pi OS 64-bit**
-2. Root SSH access
+2. Root SSH access — minimum **4 GB RAM** (8 GB if using TAKServer)
 3. DNS A-records pointing to your server (`*.domain.com` + `domain.com`) — VPS only
 4. Optional: TAKServer Docker ZIP from [tak.gov](https://tak.gov/products/tak-server)
 
@@ -126,8 +126,7 @@ Each `add_user.sh` run creates:
 ├── <username>.ovpn         ← OpenVPN profile
 ├── <username>-tak.p12      ← TAK client certificate
 ├── <username>-tak.zip      ← TAK data package (recommended)
-├── qr-credentials.png      ← QR code with Nextcloud login
-├── qr-info.png             ← QR code with all connection details
+├── qr-credentials.png      ← QR code with LLDAP login credentials
 └── credentials.txt         ← Plain-text summary (delete after handover!)
 ```
 
@@ -136,7 +135,7 @@ Files are automatically uploaded to Nextcloud (`KOMMS-Users/<username>/`) and sh
 ### Onboarding in 4 steps
 
 1. User opens `https://cloud.domain.com` — no VPN needed
-2. Logs in with credentials from `qr-credentials.png`
+2. Logs in via Authelia SSO with the LLDAP credentials from `qr-credentials.png` (Nextcloud redirects automatically — no password form on Nextcloud itself)
 3. Downloads `.ovpn` → imports into OpenVPN app → connects
 4. All other services are now accessible
 
@@ -149,7 +148,7 @@ Files are automatically uploaded to Nextcloud (`KOMMS-Users/<username>/`) and sh
 ```bash
 sudo bash /opt/komms/server/update.sh            # latest release tag (recommended)
 sudo bash /opt/komms/server/update.sh main       # current main branch
-sudo bash /opt/komms/server/update.sh v0.1.0     # specific tag
+sudo bash /opt/komms/server/update.sh v0.0.5     # specific tag
 ```
 
 - Backs up `/opt/komms-data/.env` before touching anything

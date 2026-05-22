@@ -29,7 +29,7 @@
 |-------------|-------------|---------------|
 | Betriebssystem | Ubuntu 22.04 / 24.04 oder Debian 12 (64-bit) | gleich |
 | Architektur | x86_64 | x86_64 oder ARM64 (RPi, ohne TAKServer) |
-| RAM | min. 4 GB (8 GB empfohlen) | min. 2 GB |
+| RAM | min. 4 GB · **min. 8 GB mit TAKServer** | min. 2 GB |
 | Speicher | min. 40 GB | min. 20 GB |
 | Root-Zugang | erforderlich | gleich |
 | Offene Ports | 80, 443, 1194/udp, 8089, 8443, 64738 | gleich |
@@ -223,8 +223,7 @@ LLDAP-Erstellung und Passwort-Reset werden übersprungen (der Account existiert 
 ├── <username>.ovpn         ← OpenVPN-Profil (Android + Windows)
 ├── <username>-tak.p12      ← ATAK/WinTAK-Zertifikat (Passphrase: TAK_CERT_PASS aus .env)
 ├── <username>-tak.zip      ← TAK-Datenpaket (empfohlen, auto-connect)
-├── qr-credentials.png      ← QR mit Login-Zugangsdaten für Nextcloud
-├── qr-info.png             ← QR mit allen Verbindungsdetails
+├── qr-credentials.png      ← QR mit LLDAP-Zugangsdaten
 └── credentials.txt         ← Klartext-Übersicht (nach Übergabe löschen!)
 ```
 
@@ -233,7 +232,7 @@ Alle Dateien werden automatisch nach Nextcloud (`KOMMS-Users/<username>/`) hochg
 ### Onboarding-Ablauf (Nutzer-Seite)
 
 1. `https://cloud.domain.de` im Browser öffnen (kein VPN nötig)
-2. Mit Zugangsdaten aus `qr-credentials.png` einloggen
+2. Über Authelia SSO mit den LLDAP-Zugangsdaten aus `qr-credentials.png` anmelden — Nextcloud leitet automatisch weiter (kein eigenes Passwort-Formular bei Nextcloud)
 3. `.ovpn` aus dem geteilten Ordner herunterladen
 4. `.ovpn` in OpenVPN-App importieren → VPN verbinden
 5. Ab jetzt sind alle anderen Dienste erreichbar
@@ -395,12 +394,31 @@ docker compose up -d                # starten
 
 ## 11. Wartung & Backups
 
-### Docker-Images aktualisieren
+### Plattform aktualisieren (Code + Docker-Images)
 
 ```bash
-cd /opt/komms/server
-docker compose pull
-docker compose up -d
+sudo bash /opt/komms/server/update.sh            # aktueller Release-Tag (empfohlen)
+sudo bash /opt/komms/server/update.sh main       # aktueller main-Branch
+sudo bash /opt/komms/server/update.sh v0.0.5     # bestimmter Tag
+```
+
+Das Update-Script sichert `.env`, warnt bei fehlenden neuen Variablen, stoppt den Stack, aktualisiert Code + Images und startet neu.
+
+### Nextcloud Major-Version upgraden
+
+Nextcloud unterstützt nur einzelne Major-Version-Sprünge (z. B. 33 → 34). Pro Major-Version einmal ausführen:
+
+```bash
+sudo bash /opt/komms/server/update_nextcloud.sh        # automatisch: aktuell + 1
+sudo bash /opt/komms/server/update_nextcloud.sh 34     # explizites Ziel
+```
+
+Danach den aktualisierten Image-Tag committen:
+
+```bash
+git add server/docker-compose.yml
+git commit -m "chore: Nextcloud 33 auf 34 aktualisiert"
+git push
 ```
 
 ### Backup (wichtige Volumes)

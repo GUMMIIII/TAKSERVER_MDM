@@ -18,7 +18,7 @@
 9. [Windows Client Setup (User Side)](#9-windows-client-setup-user-side)
 10. [Day-to-Day Operations](#10-day-to-day-operations)
 11. [Maintenance & Backups](#11-maintenance--backups)
-12. [Adding TAKServer Later](#12-adding-takserver-later)
+12. [Adding TAKServer](#12-adding-takserver)
 13. [Updates](#13-updates)
 
 ---
@@ -31,7 +31,7 @@
 |-------------|-------------|---------------|
 | OS | Ubuntu 22.04 / 24.04 or Debian 12 (64-bit) | same |
 | Architecture | x86_64 | x86_64 or ARM64 (RPi — TAKServer excluded) |
-| RAM | 4 GB min (8 GB recommended) | 2 GB min |
+| RAM | 4 GB min · **8 GB min with TAKServer** | 2 GB min |
 | Disk | 40 GB min | 20 GB min |
 | Root access | required | required |
 | Open ports | 80, 443, 1194/UDP, 8089, 8443, 64738 | same |
@@ -225,8 +225,7 @@ LLDAP account creation and password reset are skipped (the account already exist
 ├── <username>.ovpn         ← OpenVPN profile (Android + Windows)
 ├── <username>-tak.p12      ← ATAK/WinTAK certificate (passphrase: TAK_CERT_PASS from .env)
 ├── <username>-tak.zip      ← TAK data package (recommended — auto-connects)
-├── qr-credentials.png      ← QR code with Nextcloud login credentials
-├── qr-info.png             ← QR code with all connection details
+├── qr-credentials.png      ← QR code with LLDAP login credentials
 └── credentials.txt         ← Plain-text summary (delete after handover!)
 ```
 
@@ -235,7 +234,7 @@ All files are automatically uploaded to Nextcloud (`KOMMS-Users/<username>/`) an
 ### User onboarding flow
 
 1. User opens `https://cloud.domain.com` (no VPN needed)
-2. Logs in with credentials from `qr-credentials.png`
+2. Logs in via Authelia SSO with the LLDAP credentials from `qr-credentials.png` — Nextcloud redirects automatically (no password form on Nextcloud itself)
 3. Downloads `.ovpn` from the shared folder
 4. Imports `.ovpn` into the OpenVPN app → connects VPN
 5. All other services are now reachable
@@ -404,7 +403,7 @@ docker compose up -d       # start all
 ```bash
 sudo bash /opt/komms/server/update.sh            # latest release tag (recommended)
 sudo bash /opt/komms/server/update.sh main       # current main branch
-sudo bash /opt/komms/server/update.sh v0.1.0     # specific tag
+sudo bash /opt/komms/server/update.sh v0.0.5     # specific tag
 ```
 
 The update script backs up `.env`, warns about new required variables, stops the stack, updates code + images, and restarts.
