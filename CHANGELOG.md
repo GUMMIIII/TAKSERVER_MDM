@@ -9,10 +9,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Planned
-- **SSO-only login for Element + Nextcloud** — disable password login, enforce Authelia SSO as the only auth path
 - **Jitsi Meet** — self-hosted video conferencing (jitsi-web, prosody, jicofo, jvb containers) behind nginx + Authelia
 - **Modular installer** — service selection via `whiptail` at install time; Docker Compose profiles so unused services are never started
 - **ARM64 TAKServer build** — auto-detection of architecture in `setup_tak.sh`; Dockerfile for building TAKServer on ARM64 (Raspberry Pi 4/5, cloud ARM instances)
+
+---
+
+## [0.0.3] – 2026-05-22
+
+### Added
+- **TAKServer auto-detection** — installer scans `$DATA_DIR/tak-release/*.zip` at startup; no prompt needed. Place the ZIP there before running `install.sh` and TAKServer is set up fully automatically.
+
+### Fixed
+- TAK cert subject: added missing `ST=` prefix for state/province (was producing invalid subjects like `/C=DE/Bayern/L=...` instead of `/C=DE/ST=Bayern/L=...`)
+- `setup_tak.sh` certmod: waits 60 s after port 8443 opens for Apache Ignite grid to finish initializing, then retries up to 3× — eliminates the manual `certmod` step on fresh installs
+
+### Changed
+- Nextcloud: `allow_multiple_user_backends=0` — local password login form is hidden; all authentication enforced through Authelia SSO
 
 ---
 

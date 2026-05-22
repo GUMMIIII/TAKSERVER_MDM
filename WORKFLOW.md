@@ -89,7 +89,18 @@ curl -H "Authorization: token YOUR_GITHUB_PAT" \
   | GITHUB_PAT=YOUR_GITHUB_PAT bash
 ```
 
-### 3.3 What the installer asks
+### 3.3 TAKServer (optional — before running the installer)
+
+TAKServer is **auto-detected** — no prompt during install. If you want it set up automatically, place the ZIP in the data directory first:
+
+```bash
+mkdir -p /opt/komms-data/tak-release
+scp TAKSERVER-DOCKER-*.zip root@YOUR_SERVER:/opt/komms-data/tak-release/
+```
+
+If the directory or ZIP is not present, TAKServer is skipped and can be added later (see [Section 12](#12-adding-takserver-later)).
+
+### 3.4 What the installer asks
 
 The installer prompts interactively for:
 
@@ -97,17 +108,17 @@ The installer prompts interactively for:
 - Passwords: database, Nextcloud admin, MDM admin, LDAP admin
 - Mumble SuperUser password + join password
 - VPN hostname/port, certificate fields
-- TAKServer (optional — ZIP must be on the server first)
-- Operator username and display name
+- Operator username and display name (prompted after health check)
 
-### 3.4 What happens automatically
+### 3.5 What happens automatically
 
 ```
-[1/8]  System update + package installation
-[2/8]  Docker installation
-[3/8]  Clone KOMMS repository to /opt/komms
-[4/8]  Write /opt/komms-data/.env
-[5/8]  setup_server.sh:
+[1/8]  System update
+[2/8]  Package installation (Docker, certbot, jq, qrencode, …)
+[3/8]  Docker installation
+[4/8]  Clone KOMMS repository to /opt/komms
+[5/8]  Write /opt/komms-data/.env
+[6/8]  setup_server.sh:
          · UFW firewall rules
          · TLS certificate (Let's Encrypt on VPS, self-signed on LAN)
          · nginx.conf, homeserver.yaml, element/config.json generated
@@ -115,18 +126,25 @@ The installer prompts interactively for:
          · Docker services started
          · Nextcloud LDAP + Authelia SSO integration configured
          · Mumble server name and join password set
-[6/8]  TAKServer setup (optional)
-[7/8]  Health check + login overview printed
-[8/8]  Operator account created (add_user.sh --admin)
-         → .ovpn + TAK certificate + Nextcloud upload
-         → SCP command printed for downloading the .ovpn
+[7/8]  TAKServer setup (if ZIP was detected):
+         · Docker image built from ZIP
+         · CoreConfig.xml generated
+         · Certificates generated (CA, server, admin)
+         · Database schema initialized
+         · admin certificate granted ROLE_ADMIN automatically
+[8/8]  Health check + login overview printed
+       → Operator account created (add_user.sh --admin)
+       → .ovpn + TAK certificate + Nextcloud upload
+       → SCP command printed for downloading the .ovpn
 ```
 
-### 3.5 Installation time
+> After installation completes, **no manual steps are required**. Everything — including TAKServer cert setup — runs automatically.
 
-Approximately **15–25 minutes** (10 min of which is Docker image downloads).
+### 3.6 Installation time
 
-### 3.6 Retrieve the operator .ovpn
+Approximately **15–30 minutes** (10 min Docker image downloads, +5 min if TAKServer ZIP is included).
+
+### 3.7 Retrieve the operator .ovpn
 
 The installer prints the SCP command at the end:
 
@@ -161,7 +179,7 @@ VPN required:
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | **Authelia** | `https://auth.domain.com` | LLDAP username + password |
-| **Nextcloud** | `https://cloud.domain.com` | Authelia SSO (any user) |
+| **Nextcloud** | `https://cloud.domain.com` | Authelia SSO — redirects automatically (no password form) |
 | **Collabora** | `https://collabora.domain.com` | Automatic via Nextcloud (WOPI) |
 | **Element** | `https://element.domain.com` | Authelia SSO |
 | **Headwind MDM** | `https://mdm.domain.com` | Authelia SSO (lldap_admin) |
@@ -452,15 +470,17 @@ TAKServer requires a free account at [tak.gov](https://tak.gov).
 
 ```bash
 # 1. Download TAKSERVER-DOCKER-<version>.zip from tak.gov
-#    → place it in /opt/komms-data/tak-release/ on the server
+scp TAKSERVER-DOCKER-*.zip root@YOUR_SERVER:/opt/komms-data/tak-release/
 
-# 2. Run setup:
+# 2. Run setup (builds image, generates certs, initializes DB, grants admin role):
 sudo bash /opt/komms/server/setup_tak.sh
 
 # 3. Generate TAK certificates for existing users:
 sudo bash /opt/komms/server/add_user.sh <username> "Display Name"
 # (detects existing VPN cert → only creates TAK cert + uploads to Nextcloud)
 ```
+
+> `setup_tak.sh` completes fully automatically, including the admin certificate `ROLE_ADMIN` grant. No manual steps required.
 
 ---
 

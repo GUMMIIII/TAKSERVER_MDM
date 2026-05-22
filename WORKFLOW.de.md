@@ -88,23 +88,35 @@ curl -H "Authorization: token DEIN_GITHUB_PAT" \
   | GITHUB_PAT=DEIN_GITHUB_PAT bash
 ```
 
-### 3.3 Installationsablauf
+### 3.3 TAKServer (optional — vor dem Installer)
 
-Der Installer fragt interaktiv alle Einstellungen ab:
-- Domain, Passwörter (DB, Nextcloud-Admin, MDM-Admin, LDAP-Admin)
-- Mumble SuperUser-Passwort + Join-Passwort (für Verbindung zum Voice-Server)
+TAKServer wird **automatisch erkannt** — kein Prompt während der Installation. ZIP einfach vorher auf den Server legen:
+
+```bash
+mkdir -p /opt/komms-data/tak-release
+scp TAKSERVER-DOCKER-*.zip root@DEIN_SERVER:/opt/komms-data/tak-release/
+```
+
+Liegt kein ZIP vor, wird TAKServer übersprungen und kann später nachgerüstet werden (siehe [Abschnitt 12](#12-takserver-nachrüsten)).
+
+### 3.4 Abgefragte Einstellungen
+
+Der Installer fragt interaktiv:
+- Domain, Betriebsmodus (VPS / LAN)
+- Passwörter (DB, Nextcloud-Admin, MDM-Admin, LDAP-Admin)
+- Mumble SuperUser-Passwort + Join-Passwort
 - VPN-Hostname/Port, Zertifikatsfelder
-- TAKServer (optional, falls ZIP bereitgestellt)
-- Operator-Username + Anzeigename
+- Operator-Username + Anzeigename (nach dem Health-Check abgefragt)
 
-Danach läuft alles automatisch:
+### 3.5 Automatischer Ablauf
 
 ```
-[1/8]  System-Update + Pakete installieren
-[2/8]  Docker installieren & starten
-[3/8]  KOMMS-Repository nach /opt/komms klonen
-[4/8]  .env schreiben
-[5/8]  setup_server.sh:
+[1/8]  System-Update
+[2/8]  Pakete installieren (Docker, certbot, jq, qrencode, …)
+[3/8]  Docker installieren
+[4/8]  KOMMS-Repository nach /opt/komms klonen
+[5/8]  .env schreiben
+[6/8]  setup_server.sh:
          · UFW Firewall konfigurieren
          · TLS-Zertifikat (Let's Encrypt VPS / selbstsigniert LAN)
          · nginx.conf, homeserver.yaml, element/config.json generieren
@@ -112,18 +124,25 @@ Danach läuft alles automatisch:
          · Docker-Dienste starten (inkl. Authelia, LLDAP, Nextcloud, Matrix …)
          · Nextcloud LDAP + OIDC Integration einrichten
          · Mumble Server-Name und Join-Passwort setzen
-[6/8]  TAKServer einrichten (optional)
-[7/8]  Health-Check aller Dienste + Login-Übersicht
-[8/8]  Operator-Account anlegen (add_user.sh --admin)
-         → .ovpn, TAK-Zertifikat, Nextcloud-Upload
-         → SCP-Befehl zum Herunterladen der .ovpn ausgeben
+[7/8]  TAKServer einrichten (wenn ZIP erkannt):
+         · Docker-Image aus ZIP bauen
+         · CoreConfig.xml generieren
+         · Zertifikate erstellen (CA, Server, Admin)
+         · Datenbank-Schema initialisieren
+         · Admin-Zertifikat automatisch mit ROLE_ADMIN verknüpft
+[8/8]  Health-Check aller Dienste + Login-Übersicht
+       → Operator-Account anlegen (add_user.sh --admin)
+       → .ovpn, TAK-Zertifikat, Nextcloud-Upload
+       → SCP-Befehl zum Herunterladen der .ovpn ausgeben
 ```
 
-### 3.4 Laufzeit
+> Nach Abschluss der Installation sind **keine manuellen Nacharbeiten nötig** — auch die TAKServer-Zertifikatkonfiguration läuft vollständig automatisch.
 
-Erstinstallation: ca. **15–25 Minuten** (davon ~10 Min Image-Downloads)
+### 3.6 Laufzeit
 
-### 3.5 Operator .ovpn abholen
+Erstinstallation: ca. **15–30 Minuten** (davon ~10 Min Image-Downloads, +5 Min mit TAKServer ZIP)
+
+### 3.7 Operator .ovpn abholen
 
 Am Ende der Installation wird ein SCP-Befehl angezeigt:
 
@@ -158,7 +177,7 @@ Nur mit VPN erreichbar:
 | Dienst | URL | Zugangsdaten |
 |--------|-----|--------------|
 | **Authelia** | `https://auth.domain.de` | LLDAP-Nutzername + Passwort |
-| **Nextcloud** | `https://cloud.domain.de` | Nextcloud-Admin / nc-passwort (lokaler Admin) |
+| **Nextcloud** | `https://cloud.domain.de` | Authelia SSO — automatische Weiterleitung (kein Passwort-Formular) |
 | **Collabora** | `https://collabora.domain.de` | automatisch via Nextcloud (WOPI) |
 | **Element** | `https://element.domain.de` | via Authelia SSO |
 | **Headwind MDM** | `https://mdm.domain.de` | via Authelia SSO (lldap_admin) |
@@ -427,16 +446,18 @@ cd /opt/komms/server && docker compose ps
 TAKServer erfordert eine kostenlose Registrierung auf [tak.gov](https://tak.gov).
 
 ```bash
-# 1. Docker-ZIP von tak.gov herunterladen:
-#    TAKSERVER-DOCKER-<version>.zip → nach /opt/komms-data/tak-release/
+# 1. Docker-ZIP von tak.gov herunterladen und auf den Server kopieren:
+scp TAKSERVER-DOCKER-*.zip root@DEIN_SERVER:/opt/komms-data/tak-release/
 
-# 2. Setup ausführen:
+# 2. Setup ausführen (baut Image, generiert Certs, richtet DB ein, setzt ROLE_ADMIN):
 sudo bash /opt/komms/server/setup_tak.sh
 
 # 3. TAK-Zertifikate für bestehende Nutzer nachholen:
 sudo bash /opt/komms/server/add_user.sh <username> "Anzeigename"
 # (erkennt vorhandenes VPN-Cert → erstellt nur TAK-Cert + lädt in Nextcloud hoch)
 ```
+
+> `setup_tak.sh` läuft vollständig automatisch durch — inklusive der Admin-Zertifikat-Verknüpfung. Keine manuellen Schritte danach.
 
 ---
 

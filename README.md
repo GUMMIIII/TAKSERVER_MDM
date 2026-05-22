@@ -90,13 +90,19 @@ For a full walkthrough see **[WORKFLOW.md](WORKFLOW.md)**.
 
 ### TAKServer (optional)
 
-TAKServer requires a free registration at [tak.gov](https://tak.gov):
+TAKServer requires a free registration at [tak.gov](https://tak.gov).
+
+**During initial install** — place the ZIP before running the installer and it is set up automatically:
 
 ```bash
-# Before running the installer, place the ZIP on the server:
 scp TAKSERVER-DOCKER-*.zip root@your.server:/opt/komms-data/tak-release/
+# Then run the installer — TAKServer is auto-detected and fully configured
+```
 
-# To add TAKServer after the initial install:
+**After the initial install:**
+
+```bash
+scp TAKSERVER-DOCKER-*.zip root@your.server:/opt/komms-data/tak-release/
 sudo bash /opt/komms/server/setup_tak.sh
 ```
 
