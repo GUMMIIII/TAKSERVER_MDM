@@ -228,14 +228,19 @@ else
         ./makeRootCa.sh --ca-name KOMMSca 2>&1
         ./makeCert.sh server takserver 2>&1
         ./makeCert.sh client admin 2>&1
-        # Re-encode admin.p12 with modern PKCS12 so OpenSSL 3.x / browsers can read it
-        keytool -importkeystore \
-            -srckeystore files/admin.p12 -srcstoretype PKCS12 -srcstorepass \${CAPASS:-atakatak} \
-            -destkeystore files/admin.p12.new -deststoretype PKCS12 -deststorepass \${CAPASS:-atakatak} \
-            -noprompt 2>&1 && mv files/admin.p12.new files/admin.p12
         echo 'Certificates generated successfully.'
     " || err "Certificate generation failed — check: docker compose logs takserver"
-    ok "TAKServer certificates generated (admin.p12 ready for browser import)"
+    # Create a legacy-format copy of admin.p12 for browser import.
+    # Java keytool generates PKCS12 with PBES2/AES-256-CBC which some browsers reject.
+    # OpenSSL -legacy produces SHA1/RC2 which every browser accepts.
+    openssl pkcs12 \
+        -in  "${TAK_DIR}/certs/files/admin.p12" -passin  "pass:${TAK_CERT_PASS}" -nodes \
+        2>/dev/null | \
+    openssl pkcs12 -export -legacy \
+        -out "${TAK_DIR}/certs/files/admin-browser.p12" -passout "pass:${TAK_CERT_PASS}" \
+        2>/dev/null \
+        && ok "TAKServer certificates generated (admin-browser.p12 ready for browser import)" \
+        || ok "TAKServer certificates generated (admin.p12 ready for browser import)"
 fi
 
 # Enable PostGIS in the tak database (required by TAKServer, CASCADE handles deps)
@@ -387,12 +392,12 @@ echo -e "  ATAK client port:  ${CYAN}${DOMAIN}:8089 (TLS)${NC}"
 echo -e "  Cert enrollment:   ${CYAN}https://${DOMAIN}:8444${NC}"
 echo ""
 echo -e "  ${YELLOW}Browser setup (one-time, on your local machine):${NC}"
-echo -e "  ${CYAN}scp root@${DOMAIN}:${TAK_DIR}/certs/files/ca.pem    ~/Downloads/tak-ca.pem${NC}"
-echo -e "  ${CYAN}scp root@${DOMAIN}:${TAK_DIR}/certs/files/admin.p12 ~/Downloads/admin.p12${NC}"
+echo -e "  ${CYAN}scp root@${DOMAIN}:${TAK_DIR}/certs/files/ca.pem             ~/Downloads/tak-ca.pem${NC}"
+echo -e "  ${CYAN}scp root@${DOMAIN}:${TAK_DIR}/certs/files/admin-browser.p12 ~/Downloads/admin-browser.p12${NC}"
 echo ""
 echo -e "  Firefox → about:preferences → Privacy & Security → View Certificates"
-echo -e "    Authorities tab:       Import tak-ca.pem  → trust for websites"
-echo -e "    Your Certificates tab: Import admin.p12   → password: ${TAK_CERT_PASS}"
+echo -e "    Authorities tab:       Import tak-ca.pem        → trust for websites"
+echo -e "    Your Certificates tab: Import admin-browser.p12 → password: ${TAK_CERT_PASS}"
 echo ""
 echo -e "  Then open ${CYAN}https://${DOMAIN}:8443/${NC} — select 'admin' cert when prompted."
 echo ""
