@@ -425,6 +425,8 @@ bash "$SCRIPT_DIR/setup_nextcloud_ldap.sh"
 # Nextcloud reverse-proxy settings: trust nginx, force https:// URLs.
 docker compose exec -T -u www-data nextcloud php occ config:system:set overwriteprotocol --value=https >/dev/null 2>&1 || true
 docker compose exec -T -u www-data nextcloud php occ config:system:set overwrite.cli.url --value="https://cloud.${DOMAIN}" >/dev/null 2>&1 || true
+docker compose exec -T -u www-data nextcloud php occ config:system:set trusted_domains 0 --value=localhost >/dev/null 2>&1 || true
+docker compose exec -T -u www-data nextcloud php occ config:system:set trusted_domains 1 --value="cloud.${DOMAIN}" >/dev/null 2>&1 || true
 docker compose exec -T -u www-data nextcloud php occ config:system:set trusted_proxies 0 --value="172.16.0.0/12" >/dev/null 2>&1 || true
 # Allow Nextcloud to make outbound requests to internal/Docker IPs (needed for OIDC discovery via nginx alias)
 docker compose exec -T -u www-data nextcloud php occ config:system:set allow_local_remote_servers --value=true --type=boolean >/dev/null 2>&1 || true
