@@ -287,14 +287,15 @@ ok "Database schema ready"
 # that differ from TAK 4.x. This patch applies the required corrections:
 #   · auth/ldap:  TAK 5.7 uses userstring/serviceAccountCredential (not userDN/password)
 #   · security:   TLS requires keymanager="SunX509" (not keyManagerType)
-#   · connector:  port 8443 needs clientAuth="WANT" (Spring Boot enum; requests cert, doesn't require it)
+#   · connector:  port 8443 needs clientAuth="NONE" (Spring Boot enum; not "false")
+#   · connection: <repository><connection url="jdbc:postgresql://postgres:5432/tak"> must have URL
 #   · federation: add <federation-server> with TLS if TAK hasn't already added it
 info "Patching CoreConfig.xml for TAK 5.7 attribute names..."
 _PAT=$(mktemp --suffix=.py)
 cat > "$_PAT" << 'PYEOF'
 import sys, re
 
-cfg, cpw, lbase, lpw = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+cfg, cpw, lbase, lpw, dburl, dbuser, dbpass = sys.argv[1:]
 txt = open(cfg).read()
 
 # 1. Replace entire auth block with correct TAK 5.7 LDAP format.
@@ -324,20 +325,28 @@ def add_keymanager(m):
     return s
 txt = re.sub(r'<security>\s*<tls[^>]*/>\s*</security>', add_keymanager, txt, flags=re.DOTALL)
 
-# 3. Ensure clientAuth="false" on port 8443 (WebTAK / admin UI) connector.
-#    This is already set in the template CoreConfig.xml, but patch defensively in
-#    case a pre-existing CoreConfig was copied without it. The connector is multi-line
-#    with / chars in paths — use [^>]*> to avoid stopping at the first slash.
+# 3. Ensure clientAuth="NONE" on port 8443 (WebTAK / admin UI) connector.
+#    TAK 5.7 uses Spring Boot enum values: NONE / NEED / WANT (not true/false).
+#    The connector is single-line with / chars in paths — use [^>]*/> to match.
 def fix_8443_client_auth(m):
     s = m.group(0)
     if 'clientAuth=' not in s:
-        s = s.replace('<connector port="8443"', '<connector port="8443" clientAuth="false"', 1)
+        s = s.replace('<connector port="8443"', '<connector port="8443" clientAuth="NONE"', 1)
     else:
-        s = re.sub(r'clientAuth="[^"]*"', 'clientAuth="false"', s)
+        s = re.sub(r'clientAuth="[^"]*"', 'clientAuth="NONE"', s)
     return s
 txt = re.sub(r'<connector port="8443"[^>]*/>', fix_8443_client_auth, txt)
 
-# 4. Add <federation-server> inside <federation> if takserver.war hasn't done it yet.
+# 4. Set DB connection URL in <repository><connection>.
+#    TAK 5.7 reads the JDBC URL from this element (XSD default is 127.0.0.1:5432/cot).
+#    Patch both empty <connection/> and any existing <connection url="..."/> forms.
+txt = re.sub(
+    r'<connection(?:\s[^/]*)?\s*/>',
+    '<connection url="' + dburl + '" username="' + dbuser + '" password="' + dbpass + '"/>',
+    txt
+)
+
+# 5. Add <federation-server> inside <federation> if takserver.war hasn't done it yet.
 #    DistributedFederationManager.init() unconditionally calls getFederationServer().getTls()
 #    which NPEs if the element is absent, even when federation is disabled.
 if '<federation-server' not in txt:
@@ -357,8 +366,11 @@ python3 "$_PAT" \
     "$TAK_CERT_PASS" \
     "${LDAP_BASE_DN:-dc=komms,dc=local}" \
     "${LDAP_ADMIN_PASS:-}" \
-    && ok "CoreConfig.xml patched (TAK 5.7 LDAP + TLS + clientAuth=NONE on 8443)" \
-    || warn "CoreConfig.xml patch failed — WebTAK auth may not work"
+    "jdbc:postgresql://postgres:5432/tak" \
+    "$DB_USER" \
+    "$DB_PASS" \
+    && ok "CoreConfig.xml patched (TAK 5.7 LDAP + TLS + clientAuth=NONE + DB URL)" \
+    || warn "CoreConfig.xml patch failed — WebTAK auth / DB may not work"
 rm -f "$_PAT"
 
 # Restart TAKServer so it picks up the new certs + schema
