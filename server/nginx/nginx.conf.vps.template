@@ -206,8 +206,9 @@ http {
         ssl_ciphers         HIGH:!aNULL:!MD5;
         ssl_session_cache   shared:SSL:10m;
 
-        # Native client sync paths — bypass Authelia
-        location ~ ^/(remote\.php|ocs|status\.php|index\.php/s/)/ {
+        # Native client sync paths + WOPI — bypass Authelia
+        # WOPI is token-authenticated by Nextcloud; Authelia gate would break Collabora callbacks.
+        location ~ ^/(remote\.php|ocs|status\.php|index\.php/s/|index\.php/apps/richdocuments/wopi/)/ {
             proxy_pass         http://nextcloud;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
