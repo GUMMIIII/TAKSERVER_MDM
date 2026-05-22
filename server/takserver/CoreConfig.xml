@@ -21,8 +21,11 @@
                coreVersion="2"/>
 
         <!-- HTTPS connector – WebTAK and admin UI (port 8443) -->
+        <!-- clientAuth="false": nginx proxies here without a client cert. -->
+        <!-- Port 8444 handles mTLS cert enrollment (clientAuth="true").  -->
         <connector port="8443"
                    _name="https"
+                   clientAuth="false"
                    keystoreFile="/opt/tak/certs/files/takserver.jks"
                    keystorePass="KOMMS_CERT_PASS"
                    truststoreFile="/opt/tak/certs/files/truststore-root.jks"

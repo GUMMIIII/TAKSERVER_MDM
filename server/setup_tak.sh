@@ -325,18 +325,18 @@ def add_keymanager(m):
     return s
 txt = re.sub(r'<security>\s*<tls[^>]*/>\s*</security>', add_keymanager, txt, flags=re.DOTALL)
 
-# 3. Set clientAuth="NONE" on port 8443 (WebTAK / admin UI) connector.
-#    Spring Boot maps this to Ssl.ClientAuth enum — valid values: NEED, NONE, WANT.
-#    NONE: nginx proxies to TAKServer without a client cert → no 502.
-#    Without this, TAKServer defaults to NEED → TLS alert "certificate required".
+# 3. Ensure clientAuth="false" on port 8443 (WebTAK / admin UI) connector.
+#    This is already set in the template CoreConfig.xml, but patch defensively in
+#    case a pre-existing CoreConfig was copied without it. The connector is multi-line
+#    with / chars in paths — use [^>]*> to avoid stopping at the first slash.
 def fix_8443_client_auth(m):
     s = m.group(0)
     if 'clientAuth=' not in s:
-        s = s.replace('<connector port="8443"', '<connector port="8443" clientAuth="NONE"', 1)
+        s = s.replace('<connector port="8443"', '<connector port="8443" clientAuth="false"', 1)
     else:
-        s = re.sub(r'clientAuth="[^"]*"', 'clientAuth="NONE"', s)
+        s = re.sub(r'clientAuth="[^"]*"', 'clientAuth="false"', s)
     return s
-txt = re.sub(r'<connector port="8443"[^/]*/>', fix_8443_client_auth, txt)
+txt = re.sub(r'<connector port="8443"[^>]*/>', fix_8443_client_auth, txt)
 
 # 4. Add <federation-server> inside <federation> if takserver.war hasn't done it yet.
 #    DistributedFederationManager.init() unconditionally calls getFederationServer().getTls()
