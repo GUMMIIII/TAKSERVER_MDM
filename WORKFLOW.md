@@ -1,393 +1,417 @@
-# KOMMS – Workflow: Von der Installation bis zur Nutzung
+# KOMMS – Operator Workflow
 
-> **Zielgruppe:** Administratoren, die KOMMS auf einem frischen Server aufsetzen.
+> **Audience:** Administrators deploying KOMMS on a fresh server.  
+> **Deutsche Version:** [WORKFLOW.de.md](WORKFLOW.de.md)
 
 ---
 
-## Inhaltsverzeichnis
+## Table of Contents
 
-1. [Voraussetzungen](#1-voraussetzungen)
-2. [DNS einrichten (nur VPS)](#2-dns-einrichten-nur-vps)
+1. [Prerequisites](#1-prerequisites)
+2. [DNS Setup (VPS only)](#2-dns-setup-vps-only)
 3. [Installation](#3-installation)
-4. [Erster Login – Übersicht](#4-erster-login--übersicht)
-5. [Nutzer anlegen](#5-nutzer-anlegen)
-6. [Nutzer löschen](#6-nutzer-löschen)
-7. [Geräteübergabe an den Nutzer](#7-geräteübergabe-an-den-nutzer)
-8. [Android-Gerät einrichten (Nutzer-Seite)](#8-android-gerät-einrichten-nutzer-seite)
-9. [Windows-Client einrichten (Nutzer-Seite)](#9-windows-client-einrichten-nutzer-seite)
-10. [Laufender Betrieb](#10-laufender-betrieb)
-11. [Wartung & Backups](#11-wartung--backups)
-12. [TAKServer nachrüsten](#12-takserver-nachrüsten)
+4. [First Login Overview](#4-first-login-overview)
+5. [Adding Users](#5-adding-users)
+6. [Removing Users](#6-removing-users)
+7. [Handing Over Credentials](#7-handing-over-credentials)
+8. [Android Device Setup (User Side)](#8-android-device-setup-user-side)
+9. [Windows Client Setup (User Side)](#9-windows-client-setup-user-side)
+10. [Day-to-Day Operations](#10-day-to-day-operations)
+11. [Maintenance & Backups](#11-maintenance--backups)
+12. [Adding TAKServer Later](#12-adding-takserver-later)
+13. [Updates](#13-updates)
 
 ---
 
-## 1. Voraussetzungen
+## 1. Prerequisites
 
 ### Server
 
-| Anforderung | VPS / Cloud | LAN / Homelab |
+| Requirement | VPS / Cloud | LAN / Homelab |
 |-------------|-------------|---------------|
-| Betriebssystem | Ubuntu 22.04 / 24.04 oder Debian 12 (64-bit) | gleich |
-| Architektur | x86_64 | x86_64 oder ARM64 (RPi, ohne TAKServer) |
-| RAM | min. 4 GB (8 GB empfohlen) | min. 2 GB |
-| Speicher | min. 40 GB | min. 20 GB |
-| Root-Zugang | erforderlich | gleich |
-| Offene Ports | 80, 443, 1194/udp, 8089, 8443, 64738 | gleich |
+| OS | Ubuntu 22.04 / 24.04 or Debian 12 (64-bit) | same |
+| Architecture | x86_64 | x86_64 or ARM64 (RPi — TAKServer excluded) |
+| RAM | 4 GB min (8 GB recommended) | 2 GB min |
+| Disk | 40 GB min | 20 GB min |
+| Root access | required | required |
+| Open ports | 80, 443, 1194/UDP, 8089, 8443, 64738 | same |
 
-### Admin-Maschine
+### Admin Machine
 
-- SSH-Zugang zum Server
-- GitHub-Account mit Zugriff auf das TAKSERVER_MDM-Repository
+- SSH access to the server
+- GitHub account with access to this repository
 
 ---
 
-## 2. DNS einrichten (nur VPS)
+## 2. DNS Setup (VPS only)
 
-**Vor der Installation** müssen folgende DNS-A-Records auf die VPS-IP zeigen.  
-Ein Wildcard-Record `*.domain.de` + `domain.de` reicht aus.
+All DNS A-records must point to the server IP **before** running the installer. A wildcard record `*.domain.com` + `domain.com` is sufficient.
 
-| Record | Ziel |
-|--------|------|
-| `domain.de` | VPS-IP |
-| `auth.domain.de` | VPS-IP |
-| `cloud.domain.de` | VPS-IP |
-| `element.domain.de` | VPS-IP |
-| `matrix.domain.de` | VPS-IP |
-| `mdm.domain.de` | VPS-IP |
-| `ldap.domain.de` | VPS-IP |
-| `tak.domain.de` | VPS-IP |
-| `collabora.domain.de` | VPS-IP |
+| Record | Target |
+|--------|--------|
+| `domain.com` | Server IP |
+| `auth.domain.com` | Server IP |
+| `cloud.domain.com` | Server IP |
+| `collabora.domain.com` | Server IP |
+| `element.domain.com` | Server IP |
+| `matrix.domain.com` | Server IP |
+| `mdm.domain.com` | Server IP |
+| `ldap.domain.com` | Server IP |
+| `tak.domain.com` | Server IP |
 
-DNS-Propagation abwarten (kann 5–60 Min dauern):
+Wait for DNS propagation (5–60 min), then verify:
 
 ```bash
-dig +short auth.domain.de      # muss die VPS-IP zurückgeben
+dig +short auth.domain.com    # must return the server IP
 ```
 
 ---
 
 ## 3. Installation
 
-### 3.1 Repository vorbereiten
+### 3.1 Clone and configure
 
-In `install.sh` bei Bedarf anpassen:
-
-```bash
-REPO_OWNER="dein-github-username"     # Zeile ~21
-```
-
-### 3.2 Installer ausführen (auf dem Server als root)
+If using a forked/private repo, edit `install.sh` to point to your repository:
 
 ```bash
-# Öffentliches Repository:
-curl -fsSL https://raw.githubusercontent.com/DEIN_USERNAME/TAKSERVER_MDM/main/install.sh | bash
-
-# Privates Repository (GitHub PAT erforderlich):
-curl -H "Authorization: token DEIN_GITHUB_PAT" \
-     -fsSL https://raw.githubusercontent.com/DEIN_USERNAME/TAKSERVER_MDM/main/install.sh \
-  | GITHUB_PAT=DEIN_GITHUB_PAT bash
+REPO_OWNER="your-github-username"    # line ~21
 ```
 
-### 3.3 Installationsablauf
+### 3.2 Run the installer on the server (as root)
 
-Der Installer fragt interaktiv alle Einstellungen ab:
-- Domain, Passwörter (DB, Nextcloud-Admin, MDM-Admin, LDAP-Admin)
-- Mumble SuperUser-Passwort + Join-Passwort (für Verbindung zum Voice-Server)
-- VPN-Hostname/Port, Zertifikatsfelder
-- TAKServer (optional, falls ZIP bereitgestellt)
-- Operator-Username + Anzeigename
+```bash
+# Public repository:
+curl -fsSL https://raw.githubusercontent.com/GUMMIIII/TAKSERVER_MDM/main/install.sh | bash
 
-Danach läuft alles automatisch:
+# Private repository (GitHub PAT required):
+curl -H "Authorization: token YOUR_GITHUB_PAT" \
+     -fsSL https://raw.githubusercontent.com/GUMMIIII/TAKSERVER_MDM/main/install.sh \
+  | GITHUB_PAT=YOUR_GITHUB_PAT bash
+```
+
+### 3.3 What the installer asks
+
+The installer prompts interactively for:
+
+- Domain name, deployment mode (VPS / LAN)
+- Passwords: database, Nextcloud admin, MDM admin, LDAP admin
+- Mumble SuperUser password + join password
+- VPN hostname/port, certificate fields
+- TAKServer (optional — ZIP must be on the server first)
+- Operator username and display name
+
+### 3.4 What happens automatically
 
 ```
-[1/8]  System-Update + Pakete installieren
-[2/8]  Docker installieren & starten
-[3/8]  KOMMS-Repository nach /opt/komms klonen
-[4/8]  .env schreiben
+[1/8]  System update + package installation
+[2/8]  Docker installation
+[3/8]  Clone KOMMS repository to /opt/komms
+[4/8]  Write /opt/komms-data/.env
 [5/8]  setup_server.sh:
-         · UFW Firewall konfigurieren
-         · TLS-Zertifikat (Let's Encrypt VPS / selbstsigniert LAN)
-         · nginx.conf, homeserver.yaml, element/config.json generieren
-         · OpenVPN PKI initialisieren
-         · Docker-Dienste starten (inkl. Authelia, LLDAP, Nextcloud, Matrix …)
-         · Nextcloud LDAP + OIDC Integration einrichten
-         · Mumble Server-Name und Join-Passwort setzen
-[6/8]  TAKServer einrichten (optional)
-[7/8]  Health-Check aller Dienste + Login-Übersicht
-[8/8]  Operator-Account anlegen (add_user.sh --admin)
-         → .ovpn, TAK-Zertifikat, Nextcloud-Upload
-         → SCP-Befehl zum Herunterladen der .ovpn ausgeben
+         · UFW firewall rules
+         · TLS certificate (Let's Encrypt on VPS, self-signed on LAN)
+         · nginx.conf, homeserver.yaml, element/config.json generated
+         · OpenVPN PKI initialized
+         · Docker services started
+         · Nextcloud LDAP + Authelia SSO integration configured
+         · Mumble server name and join password set
+[6/8]  TAKServer setup (optional)
+[7/8]  Health check + login overview printed
+[8/8]  Operator account created (add_user.sh --admin)
+         → .ovpn + TAK certificate + Nextcloud upload
+         → SCP command printed for downloading the .ovpn
 ```
 
-### 3.4 Laufzeit
+### 3.5 Installation time
 
-Erstinstallation: ca. **15–25 Minuten** (davon ~10 Min Image-Downloads)
+Approximately **15–25 minutes** (10 min of which is Docker image downloads).
 
-### 3.5 Operator .ovpn abholen
+### 3.6 Retrieve the operator .ovpn
 
-Am Ende der Installation wird ein SCP-Befehl angezeigt:
+The installer prints the SCP command at the end:
 
 ```bash
 scp root@SERVER_IP:/opt/komms-data/users/operator/operator.ovpn .
 ```
 
-Alternativ: Nach dem Login auf `https://cloud.domain.de` liegt die Datei im Ordner `KOMMS-Users/operator/`.
+Alternatively: after logging into `https://cloud.domain.com`, the file is in the shared folder `KOMMS-Users/operator/`.
 
 ---
 
-## 4. Erster Login – Übersicht
+## 4. First Login Overview
 
-### Zugangsmodell
+### Access model
 
 ```
-Ohne VPN erreichbar:
-  auth.domain.de        → Authelia SSO-Portal (Login für alle Dienste)
-  cloud.domain.de       → Nextcloud (Authelia-Gated)
-  collabora.domain.de   → Collabora Online (WOPI-Token-Auth via Nextcloud)
+Without VPN:
+  auth.domain.com        → Authelia SSO portal (login for all services)
+  cloud.domain.com       → Nextcloud (Authelia-gated)
+  collabora.domain.com   → Collabora Online (WOPI token auth via Nextcloud)
 
-Nur mit VPN erreichbar:
-  element.domain.de → Element Web    (Authelia: beliebiger Nutzer)
-  matrix.domain.de  → Matrix/Synapse (kein Authelia, native Clients)
-  mdm.domain.de     → Headwind MDM   (Authelia: lldap_admin)
-  ldap.domain.de    → LLDAP Web UI   (Authelia: lldap_admin)
-  tak.domain.de     → TAKServer      (Authelia: lldap_admin)
+VPN required:
+  element.domain.com → Element Web   (Authelia: any user)
+  matrix.domain.com  → Matrix/Synapse (no Authelia gate — native clients)
+  mdm.domain.com     → Headwind MDM  (Authelia: lldap_admin)
+  ldap.domain.com    → LLDAP Web UI  (Authelia: lldap_admin)
+  tak.domain.com     → TAKServer     (Authelia: lldap_admin)
 ```
 
-### Login-Übersicht (VPS)
+### Service login table
 
-| Dienst | URL | Zugangsdaten |
-|--------|-----|--------------|
-| **Authelia** | `https://auth.domain.de` | LLDAP-Nutzername + Passwort |
-| **Nextcloud** | `https://cloud.domain.de` | Nextcloud-Admin / nc-passwort (lokaler Admin) |
-| **Collabora** | `https://collabora.domain.de` | automatisch via Nextcloud (WOPI) |
-| **Element** | `https://element.domain.de` | via Authelia SSO |
-| **Headwind MDM** | `https://mdm.domain.de` | via Authelia SSO (lldap_admin) |
-| **LLDAP Admin** | `https://ldap.domain.de` | via Authelia SSO (lldap_admin) |
-| **TAKServer** | `https://tak.domain.de` | via Authelia SSO (lldap_admin) |
-| **Mumble** | `domain.de:64738` | Join-Passwort aus .env |
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **Authelia** | `https://auth.domain.com` | LLDAP username + password |
+| **Nextcloud** | `https://cloud.domain.com` | Authelia SSO (any user) |
+| **Collabora** | `https://collabora.domain.com` | Automatic via Nextcloud (WOPI) |
+| **Element** | `https://element.domain.com` | Authelia SSO |
+| **Headwind MDM** | `https://mdm.domain.com` | Authelia SSO (lldap_admin) |
+| **LLDAP Admin** | `https://ldap.domain.com` | Authelia SSO (lldap_admin) |
+| **TAKServer** | `https://tak.domain.com` | Authelia SSO (lldap_admin) |
+| **Mumble** | `domain.com:64738` | Join password from `.env` |
 
-> Element, MDM, LLDAP und TAKServer sind **nur mit aktivem VPN** erreichbar — nginx gibt 403 zurück, auch bei bestehender Authelia-Session.
+> Element, MDM, LLDAP and TAKServer are **only reachable with an active VPN** — nginx returns 403 even for authenticated Authelia sessions from non-VPN IPs.
 
 ---
 
-## 5. Nutzer anlegen
+## 5. Adding Users
 
-### Regulärer Nutzer
-
-```bash
-sudo bash /opt/komms/server/add_user.sh <username> "Anzeigename"
-
-# Beispiel:
-sudo bash /opt/komms/server/add_user.sh soldier01 "Max Mustermann"
-```
-
-Zugang: Nextcloud, Element, Matrix, Mumble
-
-### Admin-Nutzer (Operator)
+### Regular user
 
 ```bash
-sudo bash /opt/komms/server/add_user.sh --admin <username> "Anzeigename"
+sudo bash /opt/komms/server/add_user.sh <username> "Display Name"
+
+# Example:
+sudo bash /opt/komms/server/add_user.sh soldier01 "John Smith"
 ```
 
-Zusätzlicher Zugang: MDM, LLDAP Web UI, TAKServer WebTAK  
-(Mitgliedschaft in `lldap_admin` Gruppe wird automatisch gesetzt)
+Access granted: Nextcloud, Element, Matrix, Mumble, OpenVPN.
 
-### Sonderfall: built-in `admin` Account
+### Admin/operator user
+
+```bash
+sudo bash /opt/komms/server/add_user.sh --admin <username> "Display Name"
+```
+
+Additional access: Headwind MDM, LLDAP Web UI, TAKServer WebTAK.  
+(`lldap_admin` group membership is set automatically.)
+
+### Special case: built-in `admin` account
 
 ```bash
 sudo bash /opt/komms/server/add_user.sh admin "Admin"
 ```
 
-LLDAP-Erstellung und Passwort-Reset werden übersprungen (der Account existiert bereits und dessen Passwort wird von Authelia/Synapse für LDAP-Bind genutzt). OpenVPN, TAK-Zertifikat und Nextcloud-Upload laufen normal durch.
+LLDAP account creation and password reset are skipped (the account already exists and its password is used by Authelia/Synapse for LDAP bind). OpenVPN cert, TAK certificate, and Nextcloud upload run normally.
 
-### Was wird erstellt?
+### What gets created
 
 ```
 /opt/komms-data/users/<username>/
-├── <username>.ovpn         ← OpenVPN-Profil (Android + Windows)
-├── <username>-tak.p12      ← ATAK/WinTAK-Zertifikat (Passphrase: TAK_CERT_PASS aus .env)
-├── <username>-tak.zip      ← TAK-Datenpaket (empfohlen, auto-connect)
-├── qr-credentials.png      ← QR mit Login-Zugangsdaten für Nextcloud
-├── qr-info.png             ← QR mit allen Verbindungsdetails
-└── credentials.txt         ← Klartext-Übersicht (nach Übergabe löschen!)
+├── <username>.ovpn         ← OpenVPN profile (Android + Windows)
+├── <username>-tak.p12      ← ATAK/WinTAK certificate (passphrase: TAK_CERT_PASS from .env)
+├── <username>-tak.zip      ← TAK data package (recommended — auto-connects)
+├── qr-credentials.png      ← QR code with Nextcloud login credentials
+├── qr-info.png             ← QR code with all connection details
+└── credentials.txt         ← Plain-text summary (delete after handover!)
 ```
 
-Alle Dateien werden automatisch nach Nextcloud (`KOMMS-Users/<username>/`) hochgeladen und mit dem Nutzer geteilt.
+All files are automatically uploaded to Nextcloud (`KOMMS-Users/<username>/`) and shared with the user.
 
-### Onboarding-Ablauf (Nutzer-Seite)
+### User onboarding flow
 
-1. `https://cloud.domain.de` im Browser öffnen (kein VPN nötig)
-2. Mit Zugangsdaten aus `qr-credentials.png` einloggen
-3. `.ovpn` aus dem geteilten Ordner herunterladen
-4. `.ovpn` in OpenVPN-App importieren → VPN verbinden
-5. Ab jetzt sind alle anderen Dienste erreichbar
+1. User opens `https://cloud.domain.com` (no VPN needed)
+2. Logs in with credentials from `qr-credentials.png`
+3. Downloads `.ovpn` from the shared folder
+4. Imports `.ovpn` into the OpenVPN app → connects VPN
+5. All other services are now reachable
 
 ---
 
-## 6. Nutzer löschen
+## 6. Removing Users
 
 ```bash
 sudo bash /opt/komms/server/delete_user.sh <username>
 ```
 
-Löscht in dieser Reihenfolge:
-1. LLDAP-Account
-2. Nextcloud-Account + WebDAV-Ordner
-3. OpenVPN-Zertifikat (widerrufen + PKI-Dateien gelöscht)
-4. TAKServer-Zertifikate (.p12, .crt, .key, .jks)
-5. Lokale Dateien unter `/opt/komms-data/users/<username>/`
+Removes the account from (in order):
+
+1. LLDAP
+2. Nextcloud + WebDAV folder
+3. OpenVPN (certificate revoked, PKI files deleted)
+4. TAKServer certificates (`.p12`, `.crt`, `.key`, `.jks`)
+5. Local files under `/opt/komms-data/users/<username>/`
 
 ---
 
-## 7. Geräteübergabe an den Nutzer
+## 7. Handing Over Credentials
 
-### Sicherer Übergabeprozess
+### Secure handover process
 
-1. `qr-credentials.png` zeigen (persönlich oder über sicheren Kanal)
-2. Nutzer loggt sich in Nextcloud ein, lädt `.ovpn` herunter
-3. **Dateien aus `/opt/komms-data/users/<username>/` nach Übergabe löschen**
+1. Show `qr-credentials.png` in person or via a secure channel
+2. User logs into Nextcloud and downloads `.ovpn`
+3. **Delete files from `/opt/komms-data/users/<username>/` after handover**
 
-### Checkliste pro Gerät
+### Per-device checklist
 
-- [ ] VPN-Profil importiert und Verbindung getestet
-- [ ] Authelia-Login auf `auth.domain.de` funktioniert
-- [ ] Nextcloud eingeloggt (`cloud.domain.de`)
-- [ ] Element Web eingeloggt (`element.domain.de`, VPN erforderlich)
-- [ ] Mumble-Client verbunden (`domain.de:64738`, VPN + Join-Passwort)
-- [ ] ATAK: TAK-Datenpaket importiert (`.zip`), Server-Verbindung getestet
-- [ ] MDM-Enrollment abgeschlossen (nur Admin-Geräte)
+- [ ] VPN profile imported and connection tested
+- [ ] Authelia login at `auth.domain.com` works
+- [ ] Nextcloud logged in (`cloud.domain.com`)
+- [ ] Element Web logged in (`element.domain.com`, VPN required)
+- [ ] Mumble client connected (`domain.com:64738`, VPN + join password)
+- [ ] ATAK: TAK data package imported (`.zip`), server connection tested
+- [ ] MDM enrollment completed (admin devices only)
 
 ---
 
-## 8. Android-Gerät einrichten (Nutzer-Seite)
+## 8. Android Device Setup (User Side)
 
 ### 8.1 VPN (OpenVPN)
 
-1. App installieren: **OpenVPN for Android**
-2. `.ovpn` auf das Gerät übertragen (aus Nextcloud herunterladen)
-3. In der App: `+` → Datei importieren → verbinden
-4. Beim Verbinden: LLDAP-Nutzername + Passwort eingeben
+1. Install: **OpenVPN for Android**
+2. Transfer `.ovpn` to the device (download from Nextcloud)
+3. In the app: `+` → Import file → Connect
+4. Enter LLDAP username + password when prompted
 
 ### 8.2 Matrix / Element
 
-1. App installieren: **Element**
-2. VPN verbinden
-3. `https://element.domain.de` im Browser öffnen → Authelia-Login
-4. Oder Element-App: „Andere Server" → `https://matrix.domain.de`
+1. Install: **Element**
+2. Connect VPN
+3. Open `https://element.domain.com` in a browser → Authelia login  
+   *or* in Element app: "Other server" → `https://matrix.domain.com`
 
 ### 8.3 Nextcloud
 
-1. App installieren: **Nextcloud**
-2. Server-URL: `https://cloud.domain.de` (kein VPN nötig)
-3. Mit LLDAP-Zugangsdaten anmelden
+1. Install: **Nextcloud**
+2. Server URL: `https://cloud.domain.com` (no VPN needed)
+3. Log in with LLDAP credentials
 
 ### 8.4 ATAK (TAKServer)
 
-**Empfohlen: TAK-Datenpaket (`.zip`)**
+**Recommended: TAK data package (`.zip`)**
 
-1. `.zip`-Datei auf das Gerät übertragen (aus Nextcloud)
-2. ATAK öffnen → Einstellungen → Netzwerk → Datenpaket importieren
-3. Verbindung wird automatisch eingerichtet
+1. Transfer `.zip` to the device (from Nextcloud)
+2. ATAK → Settings → Network → Import data package
+3. Connection is configured automatically
 
-**Alternativ (manuell):**
+**Manual:**
 
-1. `.p12`-Datei übertragen
-2. ATAK → Einstellungen → Netzwerk → Verbindungen → `+`
-3. Server: `tak.domain.de`, Port: `8089`, Protokoll: `TLS`
-4. Zertifikat `.p12` importieren (Passphrase aus `credentials.txt`)
+1. Transfer `.p12` to the device
+2. ATAK → Settings → Network → Connections → `+`
+3. Server: `tak.domain.com`, Port: `8089`, Protocol: `TLS`
+4. Import `.p12` certificate (passphrase from `credentials.txt`)
 
 ### 8.5 Mumble
 
-1. App installieren: **Mumla**
-2. VPN verbinden
-3. Server hinzufügen: `domain.de:64738`
-4. Join-Passwort eingeben (aus `credentials.txt`)
+1. Install: **Mumla**
+2. Connect VPN
+3. Add server: `domain.com:64738`
+4. Enter the join password (from `credentials.txt`)
 
-### 8.6 Headwind MDM (nur Admin)
+### 8.6 Headwind MDM (admin devices only)
 
-1. VPN verbinden
-2. `https://mdm.domain.de` im Browser öffnen → Authelia-Login
-3. Enrollment-QR für das Gerät generieren
-4. Auf dem Zielgerät: Headwind APK installieren → QR scannen
+1. Connect VPN
+2. Open `https://mdm.domain.com` → Authelia login
+3. Generate an enrollment QR for the device
+4. On the target device: install the Headwind APK → scan QR
 
 ---
 
-## 9. Windows-Client einrichten (Nutzer-Seite)
+## 9. Windows Client Setup (User Side)
 
 ```powershell
-# Als Administrator ausführen:
+# Run as Administrator:
 .\windows\setup.ps1
 ```
 
-Installiert und konfiguriert: OpenVPN, WinTAK, Element Desktop
+Installs and configures: OpenVPN, WinTAK, Element Desktop.
 
 ---
 
-## 10. Laufender Betrieb
+## 10. Day-to-Day Operations
 
-### Service-Status prüfen
+### Check service status
 
 ```bash
 cd /opt/komms/server
 docker compose ps
 ```
 
-### Logs anzeigen
+### View logs
 
 ```bash
-docker compose logs -f nginx        # Reverse Proxy + Zugriffslog
-docker compose logs -f authelia     # SSO / Auth-Fehler
-docker compose logs -f lldap        # LDAP / Nutzer-Verwaltung
+docker compose logs -f nginx        # reverse proxy + access log
+docker compose logs -f authelia     # SSO / auth errors
+docker compose logs -f lldap        # LDAP / user management
 docker compose logs -f nextcloud
-docker compose logs -f collabora    # Collabora Online / Dokumenten-Editor
+docker compose logs -f collabora    # Collabora Online / document editor
 docker compose logs -f synapse      # Matrix
 docker compose logs -f headwind     # MDM
 docker compose logs -f openvpn
 docker compose logs -f mumble
 ```
 
-### Dienste neu starten
+### Restart a service
 
 ```bash
-docker compose restart <dienst>     # einzelner Dienst
-docker compose restart nginx        # nginx nach Config-Änderungen
+docker compose restart <service>    # single service
+docker compose restart nginx        # after nginx config changes
 ```
 
-> **Wichtig:** Nach Änderungen an `nginx.conf` muss der nginx-Container **neu gestartet** werden (`restart`, nicht nur `nginx -s reload`), falls die Konfigurationsdatei neu generiert wurde — andernfalls liest der Container die alte Datei (inode-Bindung).
+> **Note:** After changes to `nginx.conf`, restart the nginx container rather than just reloading (`nginx -s reload`). If the config file was regenerated from the template, the running container still has the old inode-cached version until it is restarted.
 
-### Nutzer-Passwort zurücksetzen
+### Reset a user's password
 
 ```bash
 NEW_PASS=$(openssl rand -base64 18 | tr -d '=+/' | head -c 20)
 cd /opt/komms/server
+source /opt/komms-data/.env
 docker compose exec lldap /app/lldap_set_password \
     --base-url http://127.0.0.1:17170 \
     --admin-password "$LDAP_ADMIN_PASS" \
     --username "<username>" \
     --password "$NEW_PASS"
-echo "Neues Passwort: $NEW_PASS"
+echo "New password: $NEW_PASS"
 ```
 
-### Stack stoppen / starten
+### Stop / start the stack
 
 ```bash
-docker compose down                 # stoppen (Daten bleiben in Volumes)
-docker compose up -d                # starten
+docker compose down        # stop all (data volumes preserved)
+docker compose up -d       # start all
 ```
 
 ---
 
-## 11. Wartung & Backups
+## 11. Maintenance & Backups
 
-### Docker-Images aktualisieren
+### Platform update
 
 ```bash
-cd /opt/komms/server
-docker compose pull
-docker compose up -d
+sudo bash /opt/komms/server/update.sh            # latest release tag (recommended)
+sudo bash /opt/komms/server/update.sh main       # current main branch
+sudo bash /opt/komms/server/update.sh v0.1.0     # specific tag
 ```
 
-### Backup (wichtige Volumes)
+The update script backs up `.env`, warns about new required variables, stops the stack, updates code + images, and restarts.
+
+### Nextcloud major version upgrade
+
+Nextcloud only supports single-step major upgrades (e.g. 33 → 34). Run once per major version:
+
+```bash
+sudo bash /opt/komms/server/update_nextcloud.sh        # auto: current + 1
+sudo bash /opt/komms/server/update_nextcloud.sh 34     # explicit target
+```
+
+After upgrading, commit the updated image tag:
+
+```bash
+git add server/docker-compose.yml
+git commit -m "chore: update Nextcloud 33 to 34"
+git push
+```
+
+### Backup important volumes
 
 ```bash
 for vol in server_postgres_data server_synapse_data server_nextcloud_data \
@@ -398,46 +422,57 @@ for vol in server_postgres_data server_synapse_data server_nextcloud_data \
         alpine tar czf /backup/${vol}-$(date +%Y%m%d).tar.gz -C /data .
 done
 
-# .env getrennt und verschlüsselt sichern!
+# Back up .env separately (keep encrypted!)
 cp /opt/komms-data/.env /backup/komms-env-$(date +%Y%m%d).env
 ```
 
-### Let's Encrypt Zertifikat (VPS)
+### Let's Encrypt certificate (VPS)
 
-Erneuerung läuft automatisch via Certbot-Cronjob.  
-Manuell erneuern:
+Renewal runs automatically via Certbot cron job.  
+Manual renewal:
 
 ```bash
 certbot renew
-certbot certificates   # Status prüfen
+certbot certificates    # check status
 ```
 
-### Server-Neustart
+### Server reboot
 
 ```bash
 reboot
-# Stack startet automatisch (restart: unless-stopped)
+# Stack starts automatically (restart: unless-stopped)
 cd /opt/komms/server && docker compose ps
 ```
 
 ---
 
-## 12. TAKServer nachrüsten
+## 12. Adding TAKServer Later
 
-TAKServer erfordert eine kostenlose Registrierung auf [tak.gov](https://tak.gov).
+TAKServer requires a free account at [tak.gov](https://tak.gov).
 
 ```bash
-# 1. Docker-ZIP von tak.gov herunterladen:
-#    TAKSERVER-DOCKER-<version>.zip → nach /opt/komms-data/tak-release/
+# 1. Download TAKSERVER-DOCKER-<version>.zip from tak.gov
+#    → place it in /opt/komms-data/tak-release/ on the server
 
-# 2. Setup ausführen:
+# 2. Run setup:
 sudo bash /opt/komms/server/setup_tak.sh
 
-# 3. TAK-Zertifikate für bestehende Nutzer nachholen:
-sudo bash /opt/komms/server/add_user.sh <username> "Anzeigename"
-# (erkennt vorhandenes VPN-Cert → erstellt nur TAK-Cert + lädt in Nextcloud hoch)
+# 3. Generate TAK certificates for existing users:
+sudo bash /opt/komms/server/add_user.sh <username> "Display Name"
+# (detects existing VPN cert → only creates TAK cert + uploads to Nextcloud)
 ```
 
 ---
 
-*Bei Problemen: `docker compose logs -f <dienst>` ist dein bester Freund.*
+## 13. Updates
+
+See [Section 11 – Maintenance & Backups](#11-maintenance--backups) for full update instructions.
+
+| Update type | Command |
+|-------------|---------|
+| Platform (code + Docker images) | `sudo bash /opt/komms/server/update.sh` |
+| Nextcloud major version | `sudo bash /opt/komms/server/update_nextcloud.sh` |
+
+---
+
+*When in doubt: `docker compose logs -f <service>` is your best friend.*

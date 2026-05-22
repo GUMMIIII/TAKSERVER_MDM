@@ -17,5 +17,9 @@ server/dnsmasq/dnsmasq.conf
 __pycache__/
 .DS_Store
 
+# ── TAKServer release ZIPs (never commit — requires tak.gov account) ─────────
+server/takserver/*.zip
+*.zip
+
 # ── Veraltete Dateien ─────────────────────────────────────────────────────────
 server/hmdm_init.sql
