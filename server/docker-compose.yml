@@ -82,7 +82,7 @@ services:
           - cloud.${DOMAIN}
           - element.${DOMAIN}
           - matrix.${DOMAIN}
-          - office.${DOMAIN}
+          - collabora.${DOMAIN}
     depends_on:
       - authelia
       - headwind

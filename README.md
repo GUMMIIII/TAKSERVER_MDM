@@ -19,7 +19,7 @@ Internet
 │                                                             │
 │  auth.domain     → Authelia SSO portal (login once)        │
 │  cloud.domain    → Nextcloud           [Authelia, no VPN]  │
-│  office.domain   → Collabora Online   [no VPN, WOPI auth]  │
+│  collabora.domain   → Collabora Online   [no VPN, WOPI auth]  │
 │  element.domain  → Element Web         [VPN + Authelia]    │
 │  matrix.domain   → Matrix/Synapse      [VPN only]          │
 │  mdm.domain      → Headwind MDM        [VPN + Authelia*]   │
@@ -95,7 +95,7 @@ sudo bash /opt/komms/server/setup_tak.sh
 |---------|-----|:---:|------|
 | Authelia portal | `https://auth.domain.com` | No | — |
 | Nextcloud | `https://cloud.domain.com` | No | Authelia (any user) |
-| Collabora Online | `https://office.domain.com` | No | WOPI token (via Nextcloud) |
+| Collabora Online | `https://collabora.domain.com` | No | WOPI token (via Nextcloud) |
 | Element Web | `https://element.domain.com` | **Yes** | Authelia (any user) |
 | Matrix | `https://matrix.domain.com` | **Yes** | Synapse native |
 | Headwind MDM | `https://mdm.domain.com` | **Yes** | Authelia (lldap_admin) |

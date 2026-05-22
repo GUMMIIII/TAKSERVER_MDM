@@ -144,7 +144,7 @@ if [[ "$DEPLOY_MODE" == "vps" ]]; then
     echo -e "    ${CYAN}mumble.${DOMAIN}${NC}"
     echo -e "    ${CYAN}tak.${DOMAIN}${NC}"
     echo -e "    ${CYAN}ldap.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}office.${DOMAIN}${NC}"
+    echo -e "    ${CYAN}collabora.${DOMAIN}${NC}"
     echo -e "  ${YELLOW}(Or use a wildcard: *.${DOMAIN} + ${DOMAIN})${NC}"
     echo ""
     if ! prompt_yn "Are all DNS records live and pointing to this server?" "n"; then

@@ -9,7 +9,7 @@
 #  element.${DOMAIN}  → Element Web           [Authelia gate: any user]
 #  ldap.${DOMAIN}     → LLDAP (VPN-restricted)[Authelia gate: lldap_admin]
 #  ${TAK_DOMAIN}      → TAKServer WebTAK UI   [Authelia gate: lldap_admin]
-#  office.${DOMAIN}   → Collabora Online      [no gate — WOPI tokens]
+#  collabora.${DOMAIN}   → Collabora Online      [no gate — WOPI tokens]
 #  ${DOMAIN}          → Matrix .well-known delegation + redirect to Element
 #
 #  Forward-auth pattern (repeated per protected server block):
@@ -393,13 +393,13 @@ http {
         }
     }
 
-    # ── office.${DOMAIN} → Collabora Online (CODE) ──────────────────────────
+    # ── collabora.${DOMAIN} → Collabora Online (CODE) ──────────────────────────
     # No VPN gate, no Authelia — WOPI tokens issued by Nextcloud handle auth.
     # Browser needs direct access (no VPN) for document editing.
     # TLS terminated here; Collabora runs plain HTTP on port 9980.
     server {
         listen 443 ssl;
-        server_name office.${DOMAIN};
+        server_name collabora.${DOMAIN};
         ssl_certificate     /etc/nginx/certs/komms.crt;
         ssl_certificate_key /etc/nginx/certs/komms.key;
         ssl_protocols       TLSv1.2 TLSv1.3;

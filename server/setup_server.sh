@@ -109,7 +109,7 @@ if [[ "$DEPLOY_MODE" == "vps" ]]; then
             -d "matrix.${DOMAIN}" \
             -d "element.${DOMAIN}" \
             -d "ldap.${DOMAIN}" \
-            -d "office.${DOMAIN}" \
+            -d "collabora.${DOMAIN}" \
             ${TAK_DOMAIN:+-d "${TAK_DOMAIN}"} \
             2>&1 | tee /tmp/certbot.log | grep -E "(Congratulations|Certificate|error|Error)" || true
         if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
@@ -472,8 +472,8 @@ if [[ "$DEPLOY_MODE" == "vps" ]]; then
     docker compose exec -T -u www-data nextcloud php occ app:install richdocuments >/dev/null 2>&1 || \
         docker compose exec -T -u www-data nextcloud php occ app:enable  richdocuments >/dev/null 2>&1 || true
     docker compose exec -T -u www-data nextcloud php occ config:app:set richdocuments wopi_url \
-        --value="https://office.${DOMAIN}" >/dev/null 2>&1 || true
-    ok "Nextcloud richdocuments: Collabora wopi_url=https://office.${DOMAIN}"
+        --value="https://collabora.${DOMAIN}" >/dev/null 2>&1 || true
+    ok "Nextcloud richdocuments: Collabora wopi_url=https://collabora.${DOMAIN}"
 fi
 
 # ── [7] Headwind MDM admin password ───────────────────────────────────────────
