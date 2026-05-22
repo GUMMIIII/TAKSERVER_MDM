@@ -19,7 +19,7 @@ Internet
 │                                                             │
 │  auth.domain     → Authelia SSO portal (login once)        │
 │  cloud.domain    → Nextcloud           [Authelia, no VPN]  │
-│  collabora.domain   → Collabora Online   [no VPN, WOPI auth]  │
+│  collabora.domain→ Collabora Online    [no VPN, WOPI auth] │
 │  element.domain  → Element Web         [VPN + Authelia]    │
 │  matrix.domain   → Matrix/Synapse      [VPN only]          │
 │  mdm.domain      → Headwind MDM        [VPN + Authelia*]   │
@@ -185,6 +185,8 @@ TAKSERVER_MDM/
 │   ├── setup_tak.sh               ← TAKServer setup (optional)
 │   ├── add_user.sh                ← Add user (SSO + VPN + TAK + Nextcloud + QR)
 │   ├── delete_user.sh             ← Remove user from all systems
+│   ├── update.sh                  ← In-place version update
+│   ├── migrate-data-dir.sh        ← Migration for existing installations
 │   ├── docker-compose.yml         ← All services
 │   ├── .env.example               ← Config template
 │   ├── authelia/

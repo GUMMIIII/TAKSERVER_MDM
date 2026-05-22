@@ -8,9 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Collabora Online (CODE)** — integrated document editing inside Nextcloud; `collabora/code:latest` container, nginx reverse proxy with WebSocket support, richdocuments auto-configured via `occ`
+
 ### Planned
 - **SSO-only login for Element + Nextcloud** — disable password login, enforce Authelia SSO as the only auth path
-- **Collabora Online** — integrated document editing inside Nextcloud (CODE server, single container)
 - **Jitsi Meet** — self-hosted video conferencing (jitsi-web, prosody, jicofo, jvb containers) behind nginx + Authelia
 - **Modular installer** — service selection via `whiptail` at install time; Docker Compose profiles so unused services are never started
 - **English documentation** — parallel EN docs alongside the existing German docs (or EN as primary)

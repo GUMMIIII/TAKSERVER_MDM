@@ -141,8 +141,9 @@ Alternativ: Nach dem Login auf `https://cloud.domain.de` liegt die Datei im Ordn
 
 ```
 Ohne VPN erreichbar:
-  auth.domain.de    → Authelia SSO-Portal (Login für alle Dienste)
-  cloud.domain.de   → Nextcloud (Authelia-Gated)
+  auth.domain.de        → Authelia SSO-Portal (Login für alle Dienste)
+  cloud.domain.de       → Nextcloud (Authelia-Gated)
+  collabora.domain.de   → Collabora Online (WOPI-Token-Auth via Nextcloud)
 
 Nur mit VPN erreichbar:
   element.domain.de → Element Web    (Authelia: beliebiger Nutzer)
@@ -158,6 +159,7 @@ Nur mit VPN erreichbar:
 |--------|-----|--------------|
 | **Authelia** | `https://auth.domain.de` | LLDAP-Nutzername + Passwort |
 | **Nextcloud** | `https://cloud.domain.de` | Nextcloud-Admin / nc-passwort (lokaler Admin) |
+| **Collabora** | `https://collabora.domain.de` | automatisch via Nextcloud (WOPI) |
 | **Element** | `https://element.domain.de` | via Authelia SSO |
 | **Headwind MDM** | `https://mdm.domain.de` | via Authelia SSO (lldap_admin) |
 | **LLDAP Admin** | `https://ldap.domain.de` | via Authelia SSO (lldap_admin) |
@@ -337,6 +339,7 @@ docker compose logs -f nginx        # Reverse Proxy + Zugriffslog
 docker compose logs -f authelia     # SSO / Auth-Fehler
 docker compose logs -f lldap        # LDAP / Nutzer-Verwaltung
 docker compose logs -f nextcloud
+docker compose logs -f collabora    # Collabora Online / Dokumenten-Editor
 docker compose logs -f synapse      # Matrix
 docker compose logs -f headwind     # MDM
 docker compose logs -f openvpn
