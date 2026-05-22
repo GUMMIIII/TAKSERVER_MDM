@@ -31,10 +31,11 @@ step() { echo -e "\n${BOLD}${BLUE}▶  $*${NC}"; }
 set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a
 cd "$SCRIPT_DIR"
 
-# ── Detect current version ────────────────────────────────────────────────────
-CURRENT_TAG=$(grep -E '^\s+image: nextcloud:' "$COMPOSE_FILE" | head -1 | sed 's/.*nextcloud:\([^-]*\).*/\1/')
-[[ -z "$CURRENT_TAG" ]] && err "Could not detect current Nextcloud version from docker-compose.yml"
-CURRENT_MAJOR="$CURRENT_TAG"
+# ── Detect current version from running container ─────────────────────────────
+CURRENT_VERSION=$(docker compose exec -T -u www-data nextcloud php occ status --output=json 2>/dev/null \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get('versionstring',''))" 2>/dev/null || echo "")
+[[ -z "$CURRENT_VERSION" ]] && err "Nextcloud container is not running or occ status failed."
+CURRENT_MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
 
 TARGET_MAJOR="${1:-$((CURRENT_MAJOR + 1))}"
 DIFF=$((TARGET_MAJOR - CURRENT_MAJOR))
