@@ -80,6 +80,10 @@ ok "Nextcloud is running"
 docker compose exec -T -u www-data nextcloud php occ upgrade
 ok "occ upgrade complete"
 
+# Wait for entrypoint initialization to fully complete (file writes finish)
+info "Waiting for container to stabilize (30s)..."
+sleep 30
+
 docker compose exec -T -u www-data nextcloud php occ db:add-missing-indices   2>/dev/null || true
 docker compose exec -T -u www-data nextcloud php occ db:add-missing-columns   2>/dev/null || true
 docker compose exec -T -u www-data nextcloud php occ db:convert-filecache-bigint 2>/dev/null || true
