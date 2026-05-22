@@ -15,7 +15,7 @@
 #  Example:
 #    sudo bash /opt/komms/server/add_user.sh soldier01 "Max Mustermann"
 #
-#  Output: /opt/komms/users/<username>/
+#  Output: /opt/komms-data/users/<username>/
 #    ├── soldier01.ovpn           ← OpenVPN profile → uploaded to Nextcloud
 #    ├── soldier01-tak.zip        ← ATAK/WinTAK data package → uploaded to Nextcloud
 #    ├── soldier01-tak.p12        ← Raw TAK cert (fallback)

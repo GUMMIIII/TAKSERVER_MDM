@@ -10,7 +10,7 @@
 #
 #  Prerequisites:
 #    · KOMMS already installed (docker compose stack up, .env populated)
-#    · TAKSERVER-DOCKER-*.zip placed in /opt/komms/tak-release/
+#    · TAKSERVER-DOCKER-*.zip placed in /opt/komms-data/tak-release/
 #      (download from https://tak.gov/products/tak-server – free account required)
 # ─────────────────────────────────────────────────────────────────────────────
 

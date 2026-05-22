@@ -127,7 +127,7 @@ Erstinstallation: ca. **15–25 Minuten** (davon ~10 Min Image-Downloads)
 Am Ende der Installation wird ein SCP-Befehl angezeigt:
 
 ```bash
-scp root@SERVER_IP:/opt/komms/users/operator/operator.ovpn .
+scp root@SERVER_IP:/opt/komms-data/users/operator/operator.ovpn .
 ```
 
 Alternativ: Nach dem Login auf `https://cloud.domain.de` liegt die Datei im Ordner `KOMMS-Users/operator/`.
@@ -200,7 +200,7 @@ LLDAP-Erstellung und Passwort-Reset werden übersprungen (der Account existiert 
 ### Was wird erstellt?
 
 ```
-/opt/komms/users/<username>/
+/opt/komms-data/users/<username>/
 ├── <username>.ovpn         ← OpenVPN-Profil (Android + Windows)
 ├── <username>-tak.p12      ← ATAK/WinTAK-Zertifikat (Passphrase: TAK_CERT_PASS aus .env)
 ├── <username>-tak.zip      ← TAK-Datenpaket (empfohlen, auto-connect)
@@ -232,7 +232,7 @@ Löscht in dieser Reihenfolge:
 2. Nextcloud-Account + WebDAV-Ordner
 3. OpenVPN-Zertifikat (widerrufen + PKI-Dateien gelöscht)
 4. TAKServer-Zertifikate (.p12, .crt, .key, .jks)
-5. Lokale Dateien unter `/opt/komms/users/<username>/`
+5. Lokale Dateien unter `/opt/komms-data/users/<username>/`
 
 ---
 
@@ -242,7 +242,7 @@ Löscht in dieser Reihenfolge:
 
 1. `qr-credentials.png` zeigen (persönlich oder über sicheren Kanal)
 2. Nutzer loggt sich in Nextcloud ein, lädt `.ovpn` herunter
-3. **Dateien aus `/opt/komms/users/<username>/` nach Übergabe löschen**
+3. **Dateien aus `/opt/komms-data/users/<username>/` nach Übergabe löschen**
 
 ### Checkliste pro Gerät
 
@@ -395,7 +395,7 @@ for vol in server_postgres_data server_synapse_data server_nextcloud_data \
 done
 
 # .env getrennt und verschlüsselt sichern!
-cp /opt/komms/server/.env /backup/komms-env-$(date +%Y%m%d).env
+cp /opt/komms-data/.env /backup/komms-env-$(date +%Y%m%d).env
 ```
 
 ### Let's Encrypt Zertifikat (VPS)
@@ -424,7 +424,7 @@ TAKServer erfordert eine kostenlose Registrierung auf [tak.gov](https://tak.gov)
 
 ```bash
 # 1. Docker-ZIP von tak.gov herunterladen:
-#    TAKSERVER-DOCKER-<version>.zip → nach /opt/komms/tak-release/
+#    TAKSERVER-DOCKER-<version>.zip → nach /opt/komms-data/tak-release/
 
 # 2. Setup ausführen:
 sudo bash /opt/komms/server/setup_tak.sh

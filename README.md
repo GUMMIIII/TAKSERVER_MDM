@@ -77,7 +77,7 @@ TAKServer's Docker image requires a free account at [tak.gov](https://tak.gov):
 1. Download **TAKSERVER-DOCKER-\*.zip**
 2. Place it on the server before running the installer:
    ```bash
-   scp TAKSERVER-DOCKER-*.zip root@your.server:/opt/komms/tak-release/
+   scp TAKSERVER-DOCKER-*.zip root@your.server:/opt/komms-data/tak-release/
    ```
 3. Answer `y` when the installer asks
 
@@ -126,7 +126,7 @@ sudo bash /opt/komms/server/add_user.sh --admin <username> "Display Name"
 ### What `add_user.sh` creates
 
 ```
-/opt/komms/users/<username>/
+/opt/komms-data/users/<username>/
 ├── <username>.ovpn         ← OpenVPN profile (import in OpenVPN app)
 ├── <username>-tak.p12      ← TAK client cert (import in ATAK/WinTAK)
 ├── <username>-tak.zip      ← TAK data package (auto-connect, recommended)

@@ -7,7 +7,7 @@
 #    · OpenVPN (revokes certificate)
 #    · TAKServer (removes client certificate)
 #    · Nextcloud (account + uploaded files)
-#    · Local user directory (/opt/komms/users/<username>/)
+#    · Local user directory (/opt/komms-data/users/<username>/)
 #
 #  Usage:
 #    sudo bash /opt/komms/server/delete_user.sh <username>
