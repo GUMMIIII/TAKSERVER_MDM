@@ -147,8 +147,12 @@ http {
         ssl_ciphers         HIGH:!aNULL:!MD5;
         ssl_session_cache   shared:SSL:10m;
 
-        # Device API — public (phones enroll before VPN is configured)
+        # Device API — bypass Authelia (Android client uses device tokens)
         location ~ ^/(rest|files|download)/ {
+            allow ${VPN_SUBNET}/24;
+            allow 172.16.0.0/12;
+            allow 127.0.0.1;
+            deny all;
             proxy_pass         http://headwind:8080;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;

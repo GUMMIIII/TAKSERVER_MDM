@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-#  KOMMS Platform – One-Shot Installer
+#  TAKSERVER_MDM – One-Shot Installer
 #
-#  Public repo usage:
-#    curl -fsSL https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/KOMMS/main/install.sh \
-#      | KOMMS_INSTALL_TOKEN=<token> bash
+#  Usage:
+#    curl -fsSL https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/TAKSERVER_MDM/main/install.sh | bash
 #
-#  Private repo usage (GitHub PAT required):
+#  Private repo (GitHub PAT required):
 #    curl -H "Authorization: token $GITHUB_PAT" \
-#         -fsSL https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/KOMMS/main/install.sh \
-#      | KOMMS_INSTALL_TOKEN=<token> GITHUB_PAT=$GITHUB_PAT bash
+#         -fsSL https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/TAKSERVER_MDM/main/install.sh \
+#      | GITHUB_PAT=$GITHUB_PAT bash
 #
 #  Supported OS: Ubuntu 22.04 / 24.04 · Debian 12 · Raspberry Pi OS (64-bit)
 #  Architecture: x86_64 (full) · aarch64/arm64 (TAKServer unavailable)
@@ -18,11 +17,8 @@
 set -euo pipefail
 
 # ── CONFIGURE BEFORE DEPLOYING ───────────────────────────────────────────────
-# Change INSTALL_TOKEN and share it out-of-band with authorised operators.
-# Anyone who knows this token can run the installer on a fresh machine.
-INSTALL_TOKEN="e3b0c44298fc1c149afbf4c8996fb924"
 REPO_OWNER="GUMMIIII"
-REPO_NAME="KOMMS"
+REPO_NAME="TAKSERVER_MDM"
 REPO_BRANCH="main"
 KOMMS_DIR="/opt/komms"
 # ─────────────────────────────────────────────────────────────────────────────
@@ -36,11 +32,6 @@ err()  { echo -e "${RED}  ✗  $*${NC}"; exit 1; }
 info() { echo -e "${CYAN}  →  $*${NC}"; }
 step() { echo -e "\n${BOLD}${BLUE}▶  $*${NC}"; }
 hr()   { echo -e "${BLUE}  ─────────────────────────────────────────────────${NC}"; }
-
-# ── Auth ──────────────────────────────────────────────────────────────────────
-if [[ "${KOMMS_INSTALL_TOKEN:-}" != "$INSTALL_TOKEN" ]]; then
-    err "Access denied. Provide the install token:\n  curl ... | KOMMS_INSTALL_TOKEN=<token> bash"
-fi
 
 # ── Root check ────────────────────────────────────────────────────────────────
 [[ $EUID -ne 0 ]] && err "Run as root (sudo) or pipe with: sudo bash"
