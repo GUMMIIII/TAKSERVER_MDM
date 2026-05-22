@@ -242,13 +242,16 @@ if [[ "$TAK_AVAILABLE" == "true" ]]; then
     info "The default 'atakatak' is acceptable for internal deployments; use a stronger value for exposed servers."
     CERT_PASS=$(prompt "TAK JKS certificate store password" "atakatak")
     TAK_RELEASE_DIR="$DATA_DIR/tak-release"
-    info "TAKServer Docker zip from tak.gov must be placed at:"
-    info "  $TAK_RELEASE_DIR/<TAKSERVER-DOCKER-*.zip>"
-    if prompt_yn "Is the TAKServer zip already in place?" "n"; then
+    mkdir -p "$TAK_RELEASE_DIR"
+    shopt -s nullglob; _TAK_ZIPS=("$TAK_RELEASE_DIR"/*.zip); shopt -u nullglob
+    if [[ ${#_TAK_ZIPS[@]} -gt 0 ]]; then
         SETUP_TAK=true
+        ok "TAKServer ZIP detected: $(basename "${_TAK_ZIPS[0]}")"
     else
         SETUP_TAK=false
-        warn "TAKServer setup will be skipped. Run  bash $KOMMS_DIR/server/setup_tak.sh  later."
+        warn "No TAKServer ZIP found in $TAK_RELEASE_DIR/"
+        info "To add TAKServer later: place TAKSERVER-DOCKER-*.zip there, then run:"
+        info "  sudo bash $KOMMS_DIR/server/setup_tak.sh"
     fi
 else
     CERT_PASS="atakatak"

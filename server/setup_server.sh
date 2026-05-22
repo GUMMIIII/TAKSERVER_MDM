@@ -448,9 +448,9 @@ docker compose exec -T -u www-data nextcloud php occ user_oidc:provider Authelia
 # Auto-redirect to Authelia on the Nextcloud login page
 docker compose exec -T -u www-data nextcloud php occ \
     config:app:set user_oidc auto_redirect_login_page --value=1 >/dev/null 2>&1 || true
-# Allow LDAP and OIDC backends to co-exist (needed for admin account)
+# Disable password login — OIDC (Authelia SSO) is the only auth path
 docker compose exec -T -u www-data nextcloud php occ \
-    config:app:set user_oidc allow_multiple_user_backends --value=1 >/dev/null 2>&1 || true
+    config:app:set user_oidc allow_multiple_user_backends --value=0 >/dev/null 2>&1 || true
 ok "Nextcloud OIDC: Authelia provider configured (auto-redirect enabled)"
 
 # Switch Nextcloud background jobs from AJAX (runs on user requests) to cron.
