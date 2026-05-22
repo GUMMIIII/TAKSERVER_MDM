@@ -334,7 +334,7 @@ ok "OpenVPN push directives: DNS → ${_VPN_GW} (split-horizon via dnsmasq)"
 # Uses "sh script" so no execute-bit is required on the mounted file.
 docker compose run --rm openvpn bash -c \
     'grep -q "auth-user-pass-verify" /etc/openvpn/openvpn.conf || printf "%s\n%s\n%s\n" \
-        "auth-user-pass-verify \"sh /etc/openvpn/auth/verify_ldap.sh\" via-env" \
+        "auth-user-pass-verify \"/bin/sh /etc/openvpn/auth/verify_ldap.sh\" via-env" \
         "script-security 3" \
         "username-as-common-name" >> /etc/openvpn/openvpn.conf' >/dev/null 2>&1
 ok "OpenVPN LDAP auth configured"
