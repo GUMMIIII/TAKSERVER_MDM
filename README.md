@@ -155,6 +155,23 @@ Removes the account from: LLDAP → Nextcloud → OpenVPN (cert revoked) → TAK
 
 ---
 
+## Updates
+
+```bash
+sudo bash /opt/komms/server/update.sh            # latest release tag (recommended)
+sudo bash /opt/komms/server/update.sh main       # current main branch
+sudo bash /opt/komms/server/update.sh v0.2.0     # specific tag
+```
+
+The update script:
+- Backs up `/opt/komms-data/.env` before touching anything
+- Never modifies data in `/opt/komms-data/`
+- Detects new `.env` variables and warns if your config is missing them
+- Shows migration notes (if any) and asks for confirmation before proceeding
+- Stops the stack, updates the code, pulls new images, restarts
+
+---
+
 ## File Structure
 
 ```
