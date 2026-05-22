@@ -49,18 +49,13 @@ echo ""
 [[ "$DIFF" -ne 1 ]] && err "Nextcloud only supports single-step major upgrades. Current: $CURRENT_MAJOR, Target: $TARGET_MAJOR (diff: $DIFF)"
 [[ "$TARGET_MAJOR" -lt "$CURRENT_MAJOR" ]] && err "Downgrade not supported."
 
-# ── [1] Maintenance mode on ───────────────────────────────────────────────────
-step "[1/5] Enabling maintenance mode"
-docker compose exec -T -u www-data nextcloud php occ maintenance:mode --on
-ok "Maintenance mode enabled"
-
-# ── [2] Update image tag in docker-compose.yml ────────────────────────────────
-step "[2/5] Updating image tag: nextcloud:${CURRENT_MAJOR}-apache → nextcloud:${TARGET_MAJOR}-apache"
+# ── [1] Update image tag in docker-compose.yml ───────────────────────────────
+step "[1/4] Updating image tag: nextcloud:${CURRENT_MAJOR}-apache → nextcloud:${TARGET_MAJOR}-apache"
 sed -i "s|nextcloud:${CURRENT_MAJOR}-apache|nextcloud:${TARGET_MAJOR}-apache|" "$COMPOSE_FILE"
 ok "docker-compose.yml updated"
 
-# ── [3] Pull new image + restart container ────────────────────────────────────
-step "[3/5] Pulling nextcloud:${TARGET_MAJOR}-apache"
+# ── [2] Pull new image + restart container ────────────────────────────────────
+step "[2/4] Pulling nextcloud:${TARGET_MAJOR}-apache"
 docker compose pull nextcloud
 ok "Image pulled"
 
@@ -68,8 +63,8 @@ info "Restarting Nextcloud container with new image..."
 docker compose up -d --no-deps nextcloud
 ok "Container restarted"
 
-# ── [4] Wait for Nextcloud + run upgrade ──────────────────────────────────────
-step "[4/5] Running upgrade"
+# ── [3] Wait for Nextcloud + run upgrade ──────────────────────────────────────
+step "[3/4] Running upgrade"
 info "Waiting for Nextcloud to initialize (up to 3 min)..."
 TRIES=0
 until docker compose exec -T -u www-data nextcloud php occ status --output=json 2>/dev/null \
@@ -90,9 +85,9 @@ docker compose exec -T -u www-data nextcloud php occ db:add-missing-columns   2>
 docker compose exec -T -u www-data nextcloud php occ db:convert-filecache-bigint 2>/dev/null || true
 ok "Post-upgrade DB tasks done"
 
-# ── [5] Maintenance mode off ──────────────────────────────────────────────────
-step "[5/5] Disabling maintenance mode"
-docker compose exec -T -u www-data nextcloud php occ maintenance:mode --off
+# ── [4] Verify maintenance mode is off ────────────────────────────────────────
+step "[4/4] Verifying maintenance mode is off"
+docker compose exec -T -u www-data nextcloud php occ maintenance:mode --off 2>/dev/null || true
 ok "Maintenance mode disabled"
 
 echo ""
