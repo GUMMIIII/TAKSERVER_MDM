@@ -230,24 +230,33 @@ else
         ./makeCert.sh client admin 2>&1
         echo 'Certificates generated successfully.'
     " || err "Certificate generation failed — check: docker compose logs takserver"
-    # Create a browser-importable copy of admin.p12 using the container's OpenSSL.
-    # TAKServer's makeCert.sh produces RC2-40-CBC PKCS12 (old Java keytool default);
-    # host OpenSSL 3.x cannot read RC2 without the legacy provider (often absent).
-    # The container runs OpenSSL 1.1.x which handles RC2 natively.
-    if docker compose exec -T \
-        -e "TAK_CERT_PASS=${TAK_CERT_PASS}" takserver bash -c '
-        openssl pkcs12 -in /opt/tak/certs/files/admin.p12 \
-            -passin "pass:$TAK_CERT_PASS" -nodes 2>/dev/null | \
-        openssl pkcs12 -export \
-            -out /opt/tak/certs/files/admin-browser.p12 \
-            -passout "pass:$TAK_CERT_PASS" 2>/dev/null
-    '; then
+    # Create a browser-importable copy of admin.p12.
+    # TAKServer's makeCert.sh (Java 17 keytool) produces PBES2/AES-256-CBC PKCS12.
+    # The system openssl.cnf often defaults pkcs12 -export to RC2-40-CBC (legacy provider
+    # required, frequently absent on Ubuntu 22/24).  Work around it by:
+    #   1. Decode admin.p12 to an unencrypted PEM temp file (OpenSSL 3.x reads PBES2 fine)
+    #   2. Re-export with explicitly specified AES-256-CBC (no legacy provider needed)
+    _TMP_PEM=$(mktemp)
+    if openssl pkcs12 \
+        -in  "${TAK_DIR}/certs/files/admin.p12" \
+        -passin "pass:${TAK_CERT_PASS}" \
+        -nodes -out "$_TMP_PEM" 2>/dev/null \
+    && openssl pkcs12 -export \
+        -keypbe AES-256-CBC \
+        -certpbe AES-256-CBC \
+        -macalg SHA256 \
+        -in "$_TMP_PEM" \
+        -out "${TAK_DIR}/certs/files/admin-browser.p12" \
+        -passout "pass:${TAK_CERT_PASS}" 2>/dev/null; then
         ok "TAKServer certificates generated (admin-browser.p12 ready for browser import)"
     else
-        warn "admin-browser.p12 creation failed — run manually:"
-        warn "  docker exec komms_tak bash -c \"openssl pkcs12 -in /opt/tak/certs/files/admin.p12 -passin pass:\${TAK_CERT_PASS} -nodes | openssl pkcs12 -export -out /opt/tak/certs/files/admin-browser.p12 -passout pass:\${TAK_CERT_PASS}\""
+        warn "admin-browser.p12 creation failed — run manually after install:"
+        warn "  source /opt/komms-data/.env"
+        warn "  openssl pkcs12 -in ${TAK_DIR}/certs/files/admin.p12 -passin pass:\${TAK_CERT_PASS} -nodes -out /tmp/t.pem"
+        warn "  openssl pkcs12 -export -keypbe AES-256-CBC -certpbe AES-256-CBC -macalg SHA256 -in /tmp/t.pem -out ${TAK_DIR}/certs/files/admin-browser.p12 -passout pass:\${TAK_CERT_PASS} && rm /tmp/t.pem"
         ok "TAKServer certificates generated (use admin.p12 directly as fallback)"
     fi
+    rm -f "$_TMP_PEM"
 fi
 
 # Enable PostGIS in the tak database (required by TAKServer, CASCADE handles deps)
