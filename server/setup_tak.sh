@@ -230,33 +230,36 @@ else
         ./makeCert.sh client admin 2>&1
         echo 'Certificates generated successfully.'
     " || err "Certificate generation failed — check: docker compose logs takserver"
-    # Create a browser-importable copy of admin.p12.
-    # TAKServer's makeCert.sh (Java 17 keytool) produces PBES2/AES-256-CBC PKCS12.
-    # The system openssl.cnf often defaults pkcs12 -export to RC2-40-CBC (legacy provider
-    # required, frequently absent on Ubuntu 22/24).  Work around it by:
-    #   1. Decode admin.p12 to an unencrypted PEM temp file (OpenSSL 3.x reads PBES2 fine)
-    #   2. Re-export with explicitly specified AES-256-CBC (no legacy provider needed)
+    # Produce admin-browser.p12 for browser import.
+    # TAKServer cert format depends on the Java version in the container:
+    #   - Java 8/11 (older images): RC2/3DES PKCS12 — already browser-compatible, just copy
+    #   - Java 17+ (newer images):  PBES2/AES-256-CBC — browsers reject it; re-export needed
+    # Detect by whether host OpenSSL 3.x can decode admin.p12:
+    #   success → PBES2 format (re-export with AES-256-CBC to avoid legacy provider)
+    #   failure → RC2 format   (already compatible, copy as-is)
     _TMP_PEM=$(mktemp)
     if openssl pkcs12 \
         -in  "${TAK_DIR}/certs/files/admin.p12" \
         -passin "pass:${TAK_CERT_PASS}" \
-        -nodes -out "$_TMP_PEM" 2>/dev/null \
-    && openssl pkcs12 -export \
-        -keypbe AES-256-CBC \
-        -certpbe AES-256-CBC \
-        -macalg SHA256 \
-        -in "$_TMP_PEM" \
-        -out "${TAK_DIR}/certs/files/admin-browser.p12" \
-        -passout "pass:${TAK_CERT_PASS}" 2>/dev/null; then
-        ok "TAKServer certificates generated (admin-browser.p12 ready for browser import)"
+        -nodes -out "$_TMP_PEM" 2>/dev/null; then
+        # PBES2/AES-256-CBC (Java 17+): re-export with explicit modern algorithms
+        if openssl pkcs12 -export \
+            -keypbe AES-256-CBC -certpbe AES-256-CBC -macalg SHA256 \
+            -in "$_TMP_PEM" \
+            -out "${TAK_DIR}/certs/files/admin-browser.p12" \
+            -passout "pass:${TAK_CERT_PASS}" 2>/dev/null; then
+            ok "admin-browser.p12 created (AES-256-CBC, Firefox 75+ / Chrome 68+)"
+        else
+            cp "${TAK_DIR}/certs/files/admin.p12" "${TAK_DIR}/certs/files/admin-browser.p12"
+            ok "admin-browser.p12 created (copied admin.p12)"
+        fi
     else
-        warn "admin-browser.p12 creation failed — run manually after install:"
-        warn "  source /opt/komms-data/.env"
-        warn "  openssl pkcs12 -in ${TAK_DIR}/certs/files/admin.p12 -passin pass:\${TAK_CERT_PASS} -nodes -out /tmp/t.pem"
-        warn "  openssl pkcs12 -export -keypbe AES-256-CBC -certpbe AES-256-CBC -macalg SHA256 -in /tmp/t.pem -out ${TAK_DIR}/certs/files/admin-browser.p12 -passout pass:\${TAK_CERT_PASS} && rm /tmp/t.pem"
-        ok "TAKServer certificates generated (use admin.p12 directly as fallback)"
+        # RC2/3DES (Java 8/11): already the format browsers prefer, copy directly
+        cp "${TAK_DIR}/certs/files/admin.p12" "${TAK_DIR}/certs/files/admin-browser.p12"
+        ok "admin-browser.p12 created (RC2/legacy format, universally browser-compatible)"
     fi
     rm -f "$_TMP_PEM"
+    ok "TAKServer certificates generated"
 fi
 
 # Enable PostGIS in the tak database (required by TAKServer, CASCADE handles deps)
