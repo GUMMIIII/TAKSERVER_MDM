@@ -1,4 +1,4 @@
-# KOMMS – Communications & MDM Platform
+# TAKSERVER_MDM – Communications & MDM Platform
 
 Self-hosted secure communications platform with mobile device management for Android and Windows.
 
@@ -53,13 +53,12 @@ Internet
 
 ```bash
 # Public repo:
-curl -fsSL https://raw.githubusercontent.com/GUMMIIII/KOMMS/main/install.sh \
-  | KOMMS_INSTALL_TOKEN=<your-token> bash
+curl -fsSL https://raw.githubusercontent.com/GUMMIIII/TAKSERVER_MDM/main/install.sh | bash
 
 # Private repo (GitHub PAT required):
 curl -H "Authorization: token $GITHUB_PAT" \
-     -fsSL https://raw.githubusercontent.com/GUMMIIII/KOMMS/main/install.sh \
-  | KOMMS_INSTALL_TOKEN=<your-token> GITHUB_PAT=$GITHUB_PAT bash
+     -fsSL https://raw.githubusercontent.com/GUMMIIII/TAKSERVER_MDM/main/install.sh \
+  | GITHUB_PAT=$GITHUB_PAT bash
 ```
 
 The installer prompts for all settings interactively, then:
@@ -70,8 +69,6 @@ The installer prompts for all settings interactively, then:
 - Creates your operator account (`.ovpn` + TAK cert + Nextcloud upload)
 
 At the end it prints the SCP command to download your operator `.ovpn`.
-
-**Do not share `KOMMS_INSTALL_TOKEN` publicly.**
 
 ### TAKServer (optional)
 
@@ -161,7 +158,7 @@ Removes the account from: LLDAP → Nextcloud → OpenVPN (cert revoked) → TAK
 ## File Structure
 
 ```
-KOMMS/
+TAKSERVER_MDM/
 ├── install.sh                     ← One-shot installer (entry point)
 │
 ├── server/
@@ -192,7 +189,6 @@ KOMMS/
 ## Security Notes
 
 - Change **all** passwords in `.env` before going live
-- Keep `KOMMS_INSTALL_TOKEN` confidential
 - VPN enforcement is handled by nginx (`geo $vpn_ip` module) — services listed as "VPN required" return 403 for non-VPN IPs even after Authelia login
 - Authelia access_control requires `lldap_admin` group membership for admin services
 - Matrix federation is disabled by default (closed deployment)

@@ -37,7 +37,7 @@
 ### Admin-Maschine
 
 - SSH-Zugang zum Server
-- GitHub-Account mit Zugriff auf das KOMMS-Repository
+- GitHub-Account mit Zugriff auf das TAKSERVER_MDM-Repository
 
 ---
 
@@ -69,24 +69,22 @@ dig +short auth.domain.de      # muss die VPS-IP zurückgeben
 
 ### 3.1 Repository vorbereiten
 
-In `install.sh` anpassen (einmalig vor dem ersten Deployment):
+In `install.sh` bei Bedarf anpassen:
 
 ```bash
-INSTALL_TOKEN="dein-geheimes-token"   # Zeile ~23
-REPO_OWNER="dein-github-username"     # Zeile ~24
+REPO_OWNER="dein-github-username"     # Zeile ~21
 ```
 
 ### 3.2 Installer ausführen (auf dem Server als root)
 
 ```bash
 # Öffentliches Repository:
-curl -fsSL https://raw.githubusercontent.com/DEIN_USERNAME/KOMMS/main/install.sh \
-  | KOMMS_INSTALL_TOKEN=dein-geheimes-token bash
+curl -fsSL https://raw.githubusercontent.com/DEIN_USERNAME/TAKSERVER_MDM/main/install.sh | bash
 
 # Privates Repository (GitHub PAT erforderlich):
 curl -H "Authorization: token DEIN_GITHUB_PAT" \
-     -fsSL https://raw.githubusercontent.com/DEIN_USERNAME/KOMMS/main/install.sh \
-  | KOMMS_INSTALL_TOKEN=dein-geheimes-token GITHUB_PAT=DEIN_GITHUB_PAT bash
+     -fsSL https://raw.githubusercontent.com/DEIN_USERNAME/TAKSERVER_MDM/main/install.sh \
+  | GITHUB_PAT=DEIN_GITHUB_PAT bash
 ```
 
 ### 3.3 Installationsablauf
