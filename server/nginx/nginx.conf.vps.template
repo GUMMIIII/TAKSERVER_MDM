@@ -206,9 +206,8 @@ http {
         ssl_ciphers         HIGH:!aNULL:!MD5;
         ssl_session_cache   shared:SSL:10m;
 
-        # Native client sync paths + WOPI — bypass Authelia
-        # WOPI is token-authenticated by Nextcloud; Authelia gate would break Collabora callbacks.
-        location ~ ^/(remote\.php|ocs|status\.php|index\.php/s/|index\.php/apps/richdocuments/wopi/)/ {
+        # Native client sync paths — bypass Authelia
+        location ~ ^/(remote\.php|ocs|status\.php|index\.php/s/)/ {
             proxy_pass         http://nextcloud;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
@@ -217,6 +216,17 @@ http {
             proxy_read_timeout 300;
             client_max_body_size 10g;
             proxy_set_header   Destination       $http_destination;
+        }
+
+        # WOPI endpoint — bypass Authelia; token-authenticated by Nextcloud (Collabora callbacks)
+        location ~ ^/index\.php/apps/richdocuments/wopi/ {
+            proxy_pass         http://nextcloud;
+            proxy_set_header   Host              $host;
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto $scheme;
+            proxy_read_timeout 300;
+            client_max_body_size 1g;
         }
         location /.well-known/ {
             proxy_pass         http://nextcloud/.well-known/;
