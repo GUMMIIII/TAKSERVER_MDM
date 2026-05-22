@@ -247,7 +247,8 @@ if [[ "$TAK_AVAILABLE" == "true" ]]; then
         SETUP_TAK=true
     else
         SETUP_TAK=false
-        warn "TAKServer setup will be skipped. Run  bash $KOMMS_DIR/server/setup_tak.sh  later."    fi
+        warn "TAKServer setup will be skipped. Run  bash $KOMMS_DIR/server/setup_tak.sh  later."
+    fi
 else
     CERT_PASS="atakatak"
     SETUP_TAK=false
