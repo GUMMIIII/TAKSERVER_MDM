@@ -345,9 +345,10 @@ ok "TAKServer restarted"
 docker compose restart dnsmasq 2>/dev/null && ok "dnsmasq restarted (TAK DNAT rules active)" || true
 
 # Grant ROLE_ADMIN to the admin client certificate.
-# Wait up to 2 min for the API to accept connections before running certmod.
+# certmod connects via Apache Ignite — wait for TCP port first, then allow
+# extra time for the Ignite grid to fully initialize before running certmod.
 if [[ -f "${TAK_DIR}/certs/files/admin.pem" ]]; then
-    info "Waiting for TAKServer API to be ready..."
+    info "Waiting for TAKServer port 8443 to open..."
     _TAK_TRIES=0
     until bash -c "echo > /dev/tcp/localhost/8443" 2>/dev/null; do
         _TAK_TRIES=$((_TAK_TRIES + 1))
@@ -357,12 +358,22 @@ if [[ -f "${TAK_DIR}/certs/files/admin.pem" ]]; then
         fi
         sleep 5
     done
-    if [[ $_TAK_TRIES -lt 24 ]]; then
-        docker compose exec -T takserver bash -c \
-            'cd /opt/tak && java -jar utils/UserManager.jar certmod -A certs/files/admin.pem 2>&1' \
-            | grep -E "Username|Role|Fingerprint" \
-            && ok "admin certificate granted ROLE_ADMIN" \
-            || warn "certmod failed — run manually: docker compose exec takserver bash -c 'cd /opt/tak && java -jar utils/UserManager.jar certmod -A certs/files/admin.pem'"
+    if [[ $_TAK_TRIES -lt 60 ]]; then
+        info "Port open — waiting 60s for Ignite grid to initialize..."
+        sleep 60
+        _CERTMOD_OK=false
+        for _attempt in 1 2 3; do
+            if docker compose exec -T takserver bash -c \
+                'cd /opt/tak && java -jar utils/UserManager.jar certmod -A certs/files/admin.pem 2>&1' \
+                | grep -qE "Username|Role|Fingerprint|successfully"; then
+                ok "admin certificate granted ROLE_ADMIN"
+                _CERTMOD_OK=true
+                break
+            fi
+            [[ $_attempt -lt 3 ]] && { info "certmod attempt $_attempt failed, retrying in 30s..."; sleep 30; }
+        done
+        [[ "$_CERTMOD_OK" == "false" ]] && \
+            warn "certmod failed after 3 attempts — run manually: docker compose exec takserver bash -c 'cd /opt/tak && java -jar utils/UserManager.jar certmod -A certs/files/admin.pem'"
     fi
 fi
 
