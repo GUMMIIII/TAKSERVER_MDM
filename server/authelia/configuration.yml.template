@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  KOMMS – Authelia Configuration Template
+#  Processed by setup_server.sh: ${DOMAIN}, ${LDAP_BASE_DN}, ${DB_USER},
+#  ${TAK_DOMAIN} are substituted via envsubst.
+#  Secrets injected by Docker via environment variables (AUTHELIA_* prefix).
+# ─────────────────────────────────────────────────────────────────────────────
+
+server:
+  address: tcp://0.0.0.0:9091
+
+log:
+  level: info
+
+theme: dark
+
+identity_validation:
+  reset_password:
+    jwt_secret: ""   # injected via AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET env var
+
+totp:
+  issuer: ${DOMAIN}
+  period: 30
+  skew: 1
+
+authentication_backend:
+  password_reset:
+    disable: false
+  ldap:
+    address: ldap://lldap:3890
+    implementation: custom
+    timeout: 5s
+    start_tls: false
+    base_dn: ${LDAP_BASE_DN}
+    additional_users_dn: ou=people
+    users_filter: (&({username_attribute}={input})(objectClass=person))
+    additional_groups_dn: ou=groups
+    groups_filter: (member={dn})
+    # AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD env var provides the password
+    user: uid=admin,ou=people,${LDAP_BASE_DN}
+    attributes:
+      username: uid
+      group_name: cn
+      mail: mail
+      display_name: displayName
+
+session:
+  cookies:
+    - name: authelia_session
+      # Cookie covers all *.${DOMAIN} subdomains — this is what enables SSO
+      domain: ${DOMAIN}
+      authelia_url: https://auth.${DOMAIN}
+      default_redirection_url: https://auth.${DOMAIN}/dashboard
+      expiration: 12h
+      inactivity: 1h
+      remember_me: 720h
+
+regulation:
+  max_retries: 3
+  find_time: 2m
+  ban_time: 5m
+
+storage:
+  # AUTHELIA_STORAGE_ENCRYPTION_KEY and AUTHELIA_STORAGE_POSTGRES_PASSWORD
+  # are injected via Docker environment variables
+  postgres:
+    address: tcp://postgres:5432
+    database: authelia
+    username: ${DB_USER}
+
+notifier:
+  # Notifications (password reset links, 2FA setup) are written to this file.
+  # To use SMTP instead: replace this block with smtp: configuration.
+  filesystem:
+    filename: /config/notification.txt
+
+access_control:
+  default_policy: deny
+  rules:
+    # Dashboard — gated for any authenticated user
+    - domain: auth.${DOMAIN}
+      resources: ['^/dashboard$']
+      policy: one_factor
+
+    # Authelia portal itself (login UI, API, assets) — must not be gated
+    - domain: auth.${DOMAIN}
+      policy: bypass
+
+    # Matrix federation + client API — native clients (ATAK, mobile apps)
+    # cannot follow HTTP redirects; auth is handled by Matrix/Synapse itself
+    - domain: matrix.${DOMAIN}
+      policy: bypass
+
+    # Admin-only services — restricted to LLDAP admin group members
+    - domain:
+        - ldap.${DOMAIN}
+        - mdm.${DOMAIN}
+        - ${TAK_DOMAIN}
+      subject: 'group:lldap_admin'
+      policy: one_factor
+
+    # User-facing web apps — any authenticated LDAP user
+    - domain:
+        - cloud.${DOMAIN}
+        - element.${DOMAIN}
+      policy: one_factor

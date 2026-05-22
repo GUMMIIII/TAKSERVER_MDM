@@ -1,0 +1,25 @@
+# ── Secrets & generierte Konfiguration ──────────────────────────────────────
+server/.env
+server/nginx/certs/
+server/matrix/signing.key
+server/authelia/configuration.yml
+server/authelia/oidc-provider.yml
+server/authelia/oidc.pem
+server/matrix/homeserver.yaml
+
+# ── Nutzerdaten (generiert von add_user.sh) ──────────────────────────────────
+users/
+
+# ── TAKServer-Paket (muss manuell von tak.gov heruntergeladen werden) ─────────
+tak-release/
+
+# ── Entwicklungsartefakte ─────────────────────────────────────────────────────
+.claude/
+*.bak
+*.swp
+*.orig
+__pycache__/
+.DS_Store
+
+# ── Veraltete Dateien ─────────────────────────────────────────────────────────
+server/hmdm_init.sql

@@ -1,0 +1,22 @@
+{
+    "default_server_config": {
+        "m.homeserver": {
+            "base_url": "https://REPLACE_BY_SETUP",
+            "server_name": "REPLACE_BY_SETUP"
+        }
+    },
+    "brand": "KOMMS",
+    "disable_custom_urls": false,
+    "disable_guests": true,
+    "disable_3pid_login": true,
+    "default_country_code": "DE",
+    "show_labs_settings": false,
+    "default_federate": false,
+    "room_directory": {
+        "servers": []
+    },
+    "settingDefaults": {
+        "breadcrumbs": true,
+        "language": "de-DE"
+    }
+}

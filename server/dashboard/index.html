@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOMMS</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --border:   #30363d;
+    --accent:   #58a6ff;
+    --accent2:  #3fb950;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --danger:   #f85149;
+    --radius:   12px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Topbar ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .brand {
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: .04em;
+    color: var(--text);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .brand svg { color: var(--accent); }
+  .user-pill {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: .25rem .75rem;
+    font-size: .85rem;
+    color: var(--muted);
+  }
+  .user-pill .dot {
+    width: 8px; height: 8px;
+    background: var(--accent2);
+    border-radius: 50%;
+  }
+  #username { color: var(--text); font-weight: 500; }
+  .btn-logout {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: .35rem .85rem;
+    font-size: .85rem;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+  }
+  .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* ── Main ── */
+  main {
+    flex: 1;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 2.5rem 2rem;
+  }
+
+  .section-label {
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+
+  /* ── Tile ── */
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    transition: border-color .18s, transform .18s, box-shadow .18s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .tile::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--tile-accent, var(--accent));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .2s;
+  }
+  .tile:hover {
+    border-color: var(--tile-accent, var(--accent));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  .tile:hover::before { transform: scaleX(1); }
+
+  .tile-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--tile-accent, var(--accent)) 15%, transparent);
+    color: var(--tile-accent, var(--accent));
+    flex-shrink: 0;
+  }
+  .tile-icon svg { width: 24px; height: 24px; }
+  .tile-name { font-weight: 600; font-size: 1rem; }
+  .tile-desc { font-size: .8rem; color: var(--muted); line-height: 1.4; }
+
+  .tile-admin { --tile-accent: #d29922; }
+  .tile-element { --tile-accent: #58a6ff; }
+  .tile-nextcloud { --tile-accent: #3fb950; }
+  .tile-mumble { --tile-accent: #bc8cff; }
+  .tile-openvpn { --tile-accent: #ff7b72; }
+
+  .admin-section { display: none; }
+  .admin-section.visible { display: block; }
+
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    font-size: .75rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 480px) {
+    main { padding: 1.5rem 1rem; }
+    header { padding: 0 1rem; }
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <!-- Shield icon -->
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
+    </svg>
+    KOMMS
+  </div>
+  <div class="user-pill">
+    <span class="dot"></span>
+    <span id="username">…</span>
+  </div>
+  <a class="btn-logout" href="#" id="logout-btn" title="Abmelden">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+    Logout
+  </a>
+</header>
+
+<main>
+  <div class="section-label">Dienste</div>
+  <div class="grid" id="user-tiles">
+
+    <a class="tile tile-element" id="tile-element" href="#">
+      <div class="tile-icon">
+        <!-- Chat bubble icon -->
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+        </svg>
+      </div>
+      <div class="tile-name">Element</div>
+      <div class="tile-desc">Verschlüsselter Matrix-Chat</div>
+    </a>
+
+    <a class="tile tile-nextcloud" id="tile-nextcloud" href="#">
+      <div class="tile-icon">
+        <!-- Cloud icon -->
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+        </svg>
+      </div>
+      <div class="tile-name">Nextcloud</div>
+      <div class="tile-desc">Dateien, Kalender & Kontakte</div>
+    </a>
+
+    <a class="tile tile-mumble" id="tile-mumble" href="#">
+      <div class="tile-icon">
+        <!-- Mic icon -->
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
+        </svg>
+      </div>
+      <div class="tile-name">Mumble</div>
+      <div class="tile-desc">Verschlüsselte Sprachkommunikation</div>
+    </a>
+
+  </div>
+
+  <div class="admin-section" id="admin-section">
+    <div class="section-label">Administration</div>
+    <div class="grid">
+
+      <a class="tile tile-admin" id="tile-mdm" href="#">
+        <div class="tile-icon">
+          <!-- Phone icon -->
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+          </svg>
+        </div>
+        <div class="tile-name">Headwind MDM</div>
+        <div class="tile-desc">Android-Geräteverwaltung</div>
+      </a>
+
+      <a class="tile tile-admin" id="tile-lldap" href="#">
+        <div class="tile-icon">
+          <!-- Users icon -->
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+          </svg>
+        </div>
+        <div class="tile-name">LLDAP</div>
+        <div class="tile-desc">Nutzerverwaltung & Gruppen</div>
+      </a>
+
+      <a class="tile tile-admin" id="tile-tak" href="#">
+        <div class="tile-icon">
+          <!-- Map icon -->
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/>
+          </svg>
+        </div>
+        <div class="tile-name">TAKServer</div>
+        <div class="tile-desc">Taktisches Lagebild (WebTAK)</div>
+      </a>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  KOMMS Platform &mdash; <a href="https://github.com/GUMMIIII/KOMMS" target="_blank">GitHub</a>
+</footer>
+
+<script>
+(function () {
+  // Detect base domain: strip 'auth.' prefix
+  const host = window.location.hostname;
+  const base = host.startsWith('auth.') ? host.slice(5) : host;
+  const proto = window.location.protocol;
+
+  // Wire up service URLs
+  document.getElementById('tile-element').href    = `${proto}//element.${base}`;
+  document.getElementById('tile-nextcloud').href  = `${proto}//cloud.${base}`;
+  document.getElementById('tile-mdm').href        = `${proto}//mdm.${base}`;
+  document.getElementById('tile-lldap').href      = `${proto}//ldap.${base}`;
+  document.getElementById('tile-tak').href        = `${proto}//tak.${base}`;
+
+  // Mumble has no web UI — show connection info on click
+  document.getElementById('tile-mumble').addEventListener('click', function(e) {
+    e.preventDefault();
+    alert(`Mumble-Server: ${base}:64738\n\nVerbinde dich mit dem Mumble-Client.`);
+  });
+
+  // Logout via Authelia API
+  document.getElementById('logout-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+    fetch('/api/logout', { method: 'POST' })
+      .finally(() => { window.location.href = '/'; });
+  });
+
+  // Fetch user info from Authelia API (same origin)
+  fetch('/api/user/info')
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => {
+      const uname = data.username || data.preferred_username || '?';
+      document.getElementById('username').textContent = uname;
+
+      // Show admin tiles if user is in lldap_admin group
+      const groups = data.groups || [];
+      if (groups.includes('lldap_admin')) {
+        document.getElementById('admin-section').classList.add('visible');
+      }
+    })
+    .catch(() => {
+      document.getElementById('username').textContent = 'Angemeldet';
+    });
+})();
+</script>
+</body>
+</html>
