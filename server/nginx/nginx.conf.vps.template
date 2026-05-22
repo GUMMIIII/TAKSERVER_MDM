@@ -202,6 +202,9 @@ http {
     server {
         listen 443 ssl;
         server_name cloud.${DOMAIN};
+
+        # Nextcloud sets X-Frame-Options: DENY itself; override with SAMEORIGIN.
+        proxy_hide_header X-Frame-Options;
         ssl_certificate     /etc/nginx/certs/komms.crt;
         ssl_certificate_key /etc/nginx/certs/komms.key;
         ssl_protocols       TLSv1.2 TLSv1.3;
