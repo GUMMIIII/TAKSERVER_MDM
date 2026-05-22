@@ -446,17 +446,22 @@ step "[6/8] Running server setup"
 bash "$KOMMS_DIR/server/setup_server.sh"
 
 # ── [7] TAKServer ─────────────────────────────────────────────────────────────
+# TAKServer setup is intentionally NOT run automatically from install.sh.
+# setup_tak.sh requires TAKServer's Apache Ignite grid to fully initialize
+# (can take 3–5 min after container start) before certmod can run.
+# Running it mid-install makes the overall install unpredictably long.
+# Users should run setup_tak.sh manually once the main install completes.
 step "[7/8] TAKServer"
-if [[ "$SETUP_TAK" == "true" ]]; then
-    bash "$KOMMS_DIR/server/setup_tak.sh"
+if [[ "$TAK_AVAILABLE" == "false" ]]; then
+    warn "TAKServer not available on ARM64."
+elif [[ "$SETUP_TAK" == "true" ]]; then
+    ok "TAKServer ZIP detected — run setup_tak.sh after this install completes:"
+    info "  sudo bash $KOMMS_DIR/server/setup_tak.sh"
+    info "  (takes 5–10 min; TAKServer needs time to initialize before cert setup)"
 else
-    if [[ "$TAK_AVAILABLE" == "false" ]]; then
-        warn "TAKServer not available on ARM64."
-    else
-        warn "TAKServer skipped. To set it up later:"
-        info "  1. Place TAKSERVER-DOCKER-*.zip in $KOMMS_DIR/tak-release/"
-        info "  2. Run: bash $KOMMS_DIR/server/setup_tak.sh"
-    fi
+    warn "No TAKServer ZIP found. To add TAKServer later:"
+    info "  1. Place TAKSERVER-DOCKER-*.zip in $DATA_DIR/tak-release/"
+    info "  2. Run: sudo bash $KOMMS_DIR/server/setup_tak.sh"
 fi
 
 # ── [8/8] Health check ────────────────────────────────────────────────────────

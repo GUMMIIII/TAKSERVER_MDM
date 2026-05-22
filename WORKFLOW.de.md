@@ -124,23 +124,20 @@ Der Installer fragt interaktiv:
          · Docker-Dienste starten (inkl. Authelia, LLDAP, Nextcloud, Matrix …)
          · Nextcloud LDAP + OIDC Integration einrichten
          · Mumble Server-Name und Join-Passwort setzen
-[7/8]  TAKServer einrichten (wenn ZIP erkannt):
-         · Docker-Image aus ZIP bauen
-         · CoreConfig.xml generieren
-         · Zertifikate erstellen (CA, Server, Admin)
-         · Datenbank-Schema initialisieren
-         · Admin-Zertifikat automatisch mit ROLE_ADMIN verknüpft
+[7/8]  TAKServer — ZIP erkannt → gibt Hinweis zur manuellen Ausführung von setup_tak.sh
+       (vollautomatisches Setup noch nicht implementiert, siehe Hinweis unten)
 [8/8]  Health-Check aller Dienste + Login-Übersicht
        → Operator-Account anlegen (add_user.sh --admin)
        → .ovpn, TAK-Zertifikat, Nextcloud-Upload
        → SCP-Befehl zum Herunterladen der .ovpn ausgeben
 ```
 
-> Nach Abschluss der Installation sind **keine manuellen Nacharbeiten nötig** — auch die TAKServer-Zertifikatkonfiguration läuft vollständig automatisch.
+> **TAKServer erfordert einen manuellen Schritt nach der Installation** — `setup_tak.sh` muss nach Abschluss von `install.sh` ausgeführt werden (siehe [Abschnitt 12](#12-takserver-nachrüsten)).  
+> Alle anderen Dienste laufen vollständig automatisch ohne manuelle Nacharbeiten.
 
 ### 3.6 Laufzeit
 
-Erstinstallation: ca. **15–30 Minuten** (davon ~10 Min Image-Downloads, +5 Min mit TAKServer ZIP)
+Erstinstallation: ca. **15–25 Minuten** (davon ~10 Min Image-Downloads). TAKServer kommt mit weiteren 5–10 Min hinzu wenn `setup_tak.sh` manuell ausgeführt wird.
 
 ### 3.7 Operator .ovpn abholen
 
@@ -443,13 +440,15 @@ cd /opt/komms/server && docker compose ps
 
 ## 12. TAKServer nachrüsten
 
+> **Dieser Schritt ist nach jeder Frischinstallation manuell erforderlich.** Das vollautomatische TAKServer-Setup innerhalb von `install.sh` ist in Planung, aber noch nicht implementiert — siehe [CHANGELOG](CHANGELOG.md).
+
 TAKServer erfordert eine kostenlose Registrierung auf [tak.gov](https://tak.gov).
 
 ```bash
-# 1. Docker-ZIP von tak.gov herunterladen und auf den Server kopieren:
+# 1. ZIP in das Release-Verzeichnis legen (falls nicht bereits vor install.sh geschehen):
 scp TAKSERVER-DOCKER-*.zip root@DEIN_SERVER:/opt/komms-data/tak-release/
 
-# 2. Setup ausführen (baut Image, generiert Certs, richtet DB ein, setzt ROLE_ADMIN):
+# 2. Setup ausführen:
 sudo bash /opt/komms/server/setup_tak.sh
 
 # 3. TAK-Zertifikate für bestehende Nutzer nachholen:
@@ -457,7 +456,25 @@ sudo bash /opt/komms/server/add_user.sh <username> "Anzeigename"
 # (erkennt vorhandenes VPN-Cert → erstellt nur TAK-Cert + lädt in Nextcloud hoch)
 ```
 
-> `setup_tak.sh` läuft vollständig automatisch durch — inklusive der Admin-Zertifikat-Verknüpfung. Keine manuellen Schritte danach.
+### Was setup_tak.sh macht
+
+1. ZIP entpacken + Docker-Image bauen (~5 Min)
+2. CA, Server-Zertifikat und Admin-Client-Zertifikat generieren
+3. PostgreSQL-Datenbankschema initialisieren
+4. Container neu starten, auf Port 8443 warten
+5. **60 Sekunden** warten bis Apaches Ignite-Grid vollständig initialisiert ist
+6. `certmod` ausführen um `ROLE_ADMIN` für das Admin-Zertifikat zu setzen (bis zu 3 Versuche)
+
+### Warum dauert das so lange?
+
+Die Wartezeit nach dem Container-Start ist **gewollt und notwendig**. TAKServer nutzt Apache Ignite als internen Service-Mesh. Port 8443 öffnet sich schnell — aber das Ignite-Grid braucht noch mehrere Minuten bis es Zertifikatsverwaltungs-Kommandos verarbeiten kann. Das Script **nicht unterbrechen**.
+
+Falls `certmod` trotzdem fehlschlägt, manuell nachführen:
+
+```bash
+docker exec komms_tak bash -c \
+  'cd /opt/tak && java -jar utils/UserManager.jar certmod -A certs/files/admin.pem'
+```
 
 ---
 

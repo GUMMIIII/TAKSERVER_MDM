@@ -126,23 +126,20 @@ The installer prompts interactively for:
          · Docker services started
          · Nextcloud LDAP + Authelia SSO integration configured
          · Mumble server name and join password set
-[7/8]  TAKServer setup (if ZIP was detected):
-         · Docker image built from ZIP
-         · CoreConfig.xml generated
-         · Certificates generated (CA, server, admin)
-         · Database schema initialized
-         · admin certificate granted ROLE_ADMIN automatically
+[7/8]  TAKServer — ZIP detected → prints instructions to run setup_tak.sh
+       (full auto-install not yet supported — see note below)
 [8/8]  Health check + login overview printed
        → Operator account created (add_user.sh --admin)
        → .ovpn + TAK certificate + Nextcloud upload
        → SCP command printed for downloading the .ovpn
 ```
 
-> After installation completes, **no manual steps are required**. Everything — including TAKServer cert setup — runs automatically.
+> **TAKServer requires a manual post-install step** — run `setup_tak.sh` after `install.sh` completes (see [Section 12](#12-adding-takserver-later)).  
+> All other services are fully configured automatically without any manual steps.
 
 ### 3.6 Installation time
 
-Approximately **15–30 minutes** (10 min Docker image downloads, +5 min if TAKServer ZIP is included).
+Approximately **15–25 minutes** (10 min Docker image downloads). TAKServer adds another 5–10 min when run manually via `setup_tak.sh`.
 
 ### 3.7 Retrieve the operator .ovpn
 
@@ -464,15 +461,17 @@ cd /opt/komms/server && docker compose ps
 
 ---
 
-## 12. Adding TAKServer Later
+## 12. Adding TAKServer
+
+> **This is a required manual step after every fresh install.** Fully automated TAKServer setup inside `install.sh` is on the roadmap but not yet implemented — see [CHANGELOG](CHANGELOG.md) for details.
 
 TAKServer requires a free account at [tak.gov](https://tak.gov).
 
 ```bash
-# 1. Download TAKSERVER-DOCKER-<version>.zip from tak.gov
+# 1. Place the ZIP in the release directory (if not already done before install):
 scp TAKSERVER-DOCKER-*.zip root@YOUR_SERVER:/opt/komms-data/tak-release/
 
-# 2. Run setup (builds image, generates certs, initializes DB, grants admin role):
+# 2. Run setup:
 sudo bash /opt/komms/server/setup_tak.sh
 
 # 3. Generate TAK certificates for existing users:
@@ -480,7 +479,25 @@ sudo bash /opt/komms/server/add_user.sh <username> "Display Name"
 # (detects existing VPN cert → only creates TAK cert + uploads to Nextcloud)
 ```
 
-> `setup_tak.sh` completes fully automatically, including the admin certificate `ROLE_ADMIN` grant. No manual steps required.
+### What setup_tak.sh does
+
+1. Extracts the ZIP and builds the TAKServer Docker image (~5 min)
+2. Generates the CA, server certificate, and admin client certificate
+3. Initializes the TAKServer PostgreSQL database schema
+4. Restarts the container and waits for port 8443 to open
+5. Waits **60 seconds** for TAKServer's Apache Ignite grid to fully initialize
+6. Runs `certmod` to grant `ROLE_ADMIN` to the admin certificate (retries up to 3×)
+
+### Why does it take so long?
+
+The wait after container start is **expected**. TAKServer uses Apache Ignite as its internal service mesh. Port 8443 opens quickly, but the Ignite grid takes several more minutes to become ready for certificate management commands. Do not interrupt the script.
+
+If `certmod` fails despite the wait, run it manually:
+
+```bash
+docker exec komms_tak bash -c \
+  'cd /opt/tak && java -jar utils/UserManager.jar certmod -A certs/files/admin.pem'
+```
 
 ---
 

@@ -9,9 +9,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Planned
+- **TAKServer auto-install via `install.sh`** — currently `setup_tak.sh` must be run manually after the main install (see note below). Root cause: TAKServer's Apache Ignite grid takes 3–5 min to initialize after container start; blocking the main installer for that long is impractical. Planned fix: deferred async cert setup or a reliable readiness probe.
 - **Jitsi Meet** — self-hosted video conferencing (jitsi-web, prosody, jicofo, jvb containers) behind nginx + Authelia
 - **Modular installer** — service selection via `whiptail` at install time; Docker Compose profiles so unused services are never started
 - **ARM64 TAKServer build** — auto-detection of architecture in `setup_tak.sh`; Dockerfile for building TAKServer on ARM64 (Raspberry Pi 4/5, cloud ARM instances)
+
+---
+
+## [0.0.4] – 2026-05-22
+
+### Changed
+- `install.sh` no longer calls `setup_tak.sh` automatically — TAKServer ZIP is detected and reported, but setup must be run manually after the main install completes. This prevents the installer from blocking for 5+ minutes waiting on TAKServer's Ignite grid initialization.
+
+### Fixed
+- Nextcloud `trusted_domains` now explicitly set to `cloud.DOMAIN` during setup (was only `localhost`, causing "Untrusted domain" error on first login)
 
 ---
 

@@ -92,19 +92,17 @@ For a full walkthrough see **[WORKFLOW.md](WORKFLOW.md)**.
 
 TAKServer requires a free registration at [tak.gov](https://tak.gov).
 
-**During initial install** — place the ZIP before running the installer and it is set up automatically:
+> **Note:** TAKServer setup via `install.sh` is not yet fully automated. The installer detects the ZIP and reports it, but `setup_tak.sh` must be run **manually after the main install completes**. See [roadmap](#unreleased) for details.
 
 ```bash
+# 1. Place the ZIP on the server before or after install.sh:
 scp TAKSERVER-DOCKER-*.zip root@your.server:/opt/komms-data/tak-release/
-# Then run the installer — TAKServer is auto-detected and fully configured
-```
 
-**After the initial install:**
-
-```bash
-scp TAKSERVER-DOCKER-*.zip root@your.server:/opt/komms-data/tak-release/
+# 2. After install.sh finishes, run setup manually:
 sudo bash /opt/komms/server/setup_tak.sh
 ```
+
+`setup_tak.sh` takes **5–10 minutes** — most of this is waiting for TAKServer's internal grid to initialize before the admin certificate can be registered. This is expected; do not interrupt the script.
 
 ---
 
