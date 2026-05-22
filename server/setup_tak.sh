@@ -153,9 +153,8 @@ info "Updated TAK_IMAGE in .env → $TAK_IMAGE"
 
 # ── [4] Patch CoreConfig.xml ──────────────────────────────────────────────────
 step "[4/5] Configuring TAKServer"
-mkdir -p "$DATA_DIR/config/takserver"
 CORE_CFG_TPL="$TAK_CFG_DIR/CoreConfig.xml"       # template stays in repo
-CORE_CFG="$DATA_DIR/config/takserver/CoreConfig.xml"  # generated, bind-mounted
+CORE_CFG="$TAK_DIR/CoreConfig.xml"               # written into the TAK volume mount
 [[ -f "$CORE_CFG_TPL" ]] || err "CoreConfig.xml template not found at $CORE_CFG_TPL"
 
 LDAP_BASE_DN_VAL="${LDAP_BASE_DN:-dc=komms,dc=local}"
@@ -169,7 +168,7 @@ sed \
     -e "s|KOMMS_LDAP_ADMIN_PASS|${LDAP_ADMIN_PASS_VAL}|g" \
     -e "s|KOMMS_LDAP_BASE_DN|${LDAP_BASE_DN_VAL}|g" \
     "$CORE_CFG_TPL" > "$CORE_CFG"
-ok "CoreConfig.xml generated → $DATA_DIR/config/takserver/"
+ok "CoreConfig.xml generated → $TAK_DIR/"
 
 # Write cert-metadata.sh to the bind-mount path so cert scripts pick it up
 cat > "${TAK_DIR}/certs/cert-metadata.sh" << EOF

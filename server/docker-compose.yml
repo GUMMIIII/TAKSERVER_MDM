@@ -231,7 +231,6 @@ services:
       - "8446:8446"     # Cert-based HTTPS (no client auth)
     volumes:
       - ${DATA_DIR}/tak:/opt/tak
-      - ${DATA_DIR}/config/takserver/CoreConfig.xml:/opt/tak/CoreConfig.xml
     networks:
       - komms_internal
     environment:
