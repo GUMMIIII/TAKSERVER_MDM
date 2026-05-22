@@ -12,6 +12,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KOMMS_DIR="$(dirname "$SCRIPT_DIR")"
+# .env ist ein Symlink → /opt/komms-data/.env (angelegt von install.sh)
 ENV_FILE="$SCRIPT_DIR/.env"
 
 RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m'
@@ -34,6 +35,20 @@ set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a
 [[ -z "${LDAP_ADMIN_PASS:-}" ]] && err "LDAP_ADMIN_PASS not set in .env"
 
 DEPLOY_MODE="${DEPLOY_MODE:-lan}"
+DATA_DIR="${DATA_DIR:-/opt/komms-data}"
+
+# Verzeichnisse anlegen (idempotent — falls setup_server.sh standalone läuft)
+mkdir -p \
+    "$DATA_DIR/config/nginx/certs" \
+    "$DATA_DIR/config/authelia" \
+    "$DATA_DIR/config/matrix" \
+    "$DATA_DIR/config/element" \
+    "$DATA_DIR/config/mumble" \
+    "$DATA_DIR/config/dnsmasq" \
+    "$DATA_DIR/config/takserver" \
+    "$DATA_DIR/users" \
+    "$DATA_DIR/tak" \
+    "$DATA_DIR/tak-release"
 
 # ── [1] Firewall ──────────────────────────────────────────────────────────────
 step "[1/7] Configuring firewall (UFW)"
@@ -76,7 +91,7 @@ fi
 
 # ── [2] TLS certificate ───────────────────────────────────────────────────────
 step "[2/7] TLS certificate"
-CERT_DIR="$SCRIPT_DIR/nginx/certs"
+CERT_DIR="$DATA_DIR/config/nginx/certs"
 mkdir -p "$CERT_DIR"
 
 if [[ "$DEPLOY_MODE" == "vps" ]]; then
@@ -147,20 +162,20 @@ if [[ "$DEPLOY_MODE" == "vps" ]]; then
     [[ -f "$VPS_TPL" ]] || err "VPS nginx template not found at $VPS_TPL"
     TAK_DOMAIN="${TAK_DOMAIN:-tak.${DOMAIN}}"
     export DOMAIN VPN_SUBNET TAK_DOMAIN
-    envsubst '${DOMAIN} ${VPN_SUBNET} ${TAK_DOMAIN}' < "$VPS_TPL" > "$SCRIPT_DIR/nginx/nginx.conf"
-    ok "nginx.conf generated (VPS subdomain mode)"
+    envsubst '${DOMAIN} ${VPN_SUBNET} ${TAK_DOMAIN}' < "$VPS_TPL" > "$DATA_DIR/config/nginx/nginx.conf"
+    ok "nginx.conf generated → $DATA_DIR/config/nginx/nginx.conf"
 
     # Authelia main configuration
     AUTHELIA_TPL="$SCRIPT_DIR/authelia/configuration.yml.template"
     [[ -f "$AUTHELIA_TPL" ]] || err "Authelia config template not found at $AUTHELIA_TPL"
     export LDAP_BASE_DN DB_USER TAK_DOMAIN
     envsubst '${DOMAIN} ${LDAP_BASE_DN} ${DB_USER} ${TAK_DOMAIN}' \
-        < "$AUTHELIA_TPL" > "$SCRIPT_DIR/authelia/configuration.yml"
-    ok "authelia/configuration.yml generated"
+        < "$AUTHELIA_TPL" > "$DATA_DIR/config/authelia/configuration.yml"
+    ok "authelia/configuration.yml generated → $DATA_DIR/config/authelia/"
 
     # Authelia OIDC provider config — appended to configuration.yml
-    OIDC_PEM="$SCRIPT_DIR/authelia/oidc.pem"
-    AUTHELIA_CFG="$SCRIPT_DIR/authelia/configuration.yml"
+    OIDC_PEM="$DATA_DIR/config/authelia/oidc.pem"
+    AUTHELIA_CFG="$DATA_DIR/config/authelia/configuration.yml"
     if [[ ! -f "$OIDC_PEM" ]]; then
         info "Generating RSA-4096 key for Authelia OIDC JWKS..."
         openssl genrsa 4096 > "$OIDC_PEM" 2>/dev/null
@@ -217,27 +232,27 @@ OIDC_CLIENTS
     VPN_GW="${VPN_GW%.*}.1"
     export VPN_GW
     envsubst '${DOMAIN} ${VPN_GW}' \
-        < "$SCRIPT_DIR/dnsmasq/dnsmasq.conf.template" > "$SCRIPT_DIR/dnsmasq/dnsmasq.conf"
-    ok "dnsmasq.conf generated (*.${DOMAIN} → ${VPN_GW})"
+        < "$SCRIPT_DIR/dnsmasq/dnsmasq.conf.template" > "$DATA_DIR/config/dnsmasq/dnsmasq.conf"
+    ok "dnsmasq.conf generated → $DATA_DIR/config/dnsmasq/ (*.${DOMAIN} → ${VPN_GW})"
 else
     ok "nginx.conf unchanged (LAN subpath mode)"
 fi
 
-# Matrix homeserver.yaml
+# Matrix homeserver.yaml — template stays in repo, generated file goes to data dir
 MATRIX_TPL="$SCRIPT_DIR/matrix/homeserver.yaml"
-if grep -q '\${' "$MATRIX_TPL" 2>/dev/null; then
-    TMP_CFG=$(mktemp)
+MATRIX_GENERATED="$DATA_DIR/config/matrix/homeserver.yaml"
+if [[ ! -f "$MATRIX_GENERATED" ]]; then
+    [[ -f "$MATRIX_TPL" ]] || err "Matrix homeserver.yaml template not found at $MATRIX_TPL"
     export DB_USER DB_PASS MATRIX_DOMAIN MATRIX_MACAROON_SECRET \
            MATRIX_FORM_SECRET MATRIX_REGISTRATION_SHARED_SECRET \
            LDAP_BASE_DN LDAP_ADMIN_PASS MATRIX_PUBLIC_BASEURL \
            DOMAIN SYNAPSE_OIDC_SECRET
     envsubst '${DB_USER} ${DB_PASS} ${MATRIX_DOMAIN} ${MATRIX_MACAROON_SECRET} ${MATRIX_FORM_SECRET} ${MATRIX_REGISTRATION_SHARED_SECRET} ${LDAP_BASE_DN} ${LDAP_ADMIN_PASS} ${MATRIX_PUBLIC_BASEURL} ${DOMAIN} ${SYNAPSE_OIDC_SECRET}' \
-        < "$MATRIX_TPL" > "$TMP_CFG"
-    mv "$TMP_CFG" "$MATRIX_TPL"
-    chmod 644 "$MATRIX_TPL"
-    ok "homeserver.yaml generated"
+        < "$MATRIX_TPL" > "$MATRIX_GENERATED"
+    chmod 644 "$MATRIX_GENERATED"
+    ok "homeserver.yaml generated → $DATA_DIR/config/matrix/"
 else
-    ok "homeserver.yaml already processed"
+    ok "homeserver.yaml already exists in data dir"
 fi
 
 # Element Web config.json — always written from current mode settings
@@ -247,7 +262,7 @@ else
     MATRIX_BASE_URL="https://${DOMAIN}"
 fi
 
-cat > "$SCRIPT_DIR/element/config.json" << EOF
+cat > "$DATA_DIR/config/element/config.json" << EOF
 {
     "default_server_config": {
         "m.homeserver": {
@@ -275,7 +290,7 @@ cat > "$SCRIPT_DIR/element/config.json" << EOF
     }
 }
 EOF
-ok "element/config.json written (homeserver: ${MATRIX_BASE_URL})"
+ok "element/config.json written → $DATA_DIR/config/element/ (homeserver: ${MATRIX_BASE_URL})"
 
 # ── [4] OpenVPN PKI ───────────────────────────────────────────────────────────
 step "[4/7] OpenVPN PKI"
@@ -369,7 +384,12 @@ ok "Services started"
 # ── Mumble: server name + join password ───────────────────────────────────────
 MUMBLE_SERVER_PASS="${MUMBLE_SERVER_PASS:-}"
 MUMBLE_SERVER_NAME="${MUMBLE_SERVER_NAME:-KOMMS Voice}"
-_MURMUR_INI="$SCRIPT_DIR/mumble/murmur.ini"
+_MURMUR_TPL="$SCRIPT_DIR/mumble/murmur.ini"
+_MURMUR_INI="$DATA_DIR/config/mumble/murmur.ini"
+# Copy template to data dir on first run; subsequent runs update the data dir copy.
+if [[ ! -f "$_MURMUR_INI" ]] && [[ -f "$_MURMUR_TPL" ]]; then
+    cp "$_MURMUR_TPL" "$_MURMUR_INI"
+fi
 if [[ -f "$_MURMUR_INI" ]]; then
     sed -i "s/^registerName=.*/registerName=${MUMBLE_SERVER_NAME}/" "$_MURMUR_INI"
     if grep -q "^serverpassword=" "$_MURMUR_INI"; then
@@ -378,7 +398,7 @@ if [[ -f "$_MURMUR_INI" ]]; then
         echo "serverpassword=${MUMBLE_SERVER_PASS}" >> "$_MURMUR_INI"
     fi
     docker compose restart mumble >/dev/null 2>&1 || true
-    ok "Mumble: server name and join password set"
+    ok "Mumble: server name and join password set → $DATA_DIR/config/mumble/murmur.ini"
 fi
 
 # Wait for Synapse to pass its healthcheck (up to 3 min), then restart nginx

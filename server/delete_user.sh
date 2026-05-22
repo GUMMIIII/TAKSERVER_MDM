@@ -41,6 +41,7 @@ USERNAME="$1"
 [[ -f "$ENV_FILE" ]] || err ".env not found at $ENV_FILE"
 set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a
 
+DATA_DIR="${DATA_DIR:-/opt/komms-data}"
 DOMAIN="${DOMAIN:?DOMAIN not set in .env}"
 LDAP_ADMIN_PASS="${LDAP_ADMIN_PASS:?LDAP_ADMIN_PASS not set in .env}"
 LDAP_BASE_DN="${LDAP_BASE_DN:-dc=komms,dc=local}"
@@ -48,7 +49,7 @@ NC_ADMIN="${NC_ADMIN:-admin}"
 NC_PASS="${NC_PASS:?NC_PASS not set in .env}"
 LLDAP_API="http://127.0.0.1:17170"
 
-USER_DIR="$KOMMS_DIR/users/$USERNAME"
+USER_DIR="$DATA_DIR/users/$USERNAME"
 
 echo ""
 echo -e "${BOLD}${RED}  KOMMS – Deleting user: ${USERNAME}${NC}"

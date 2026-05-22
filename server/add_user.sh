@@ -67,6 +67,7 @@ DISPLAY_NAME="${2:-$USERNAME}"
 # shellcheck source=/dev/null
 set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a
 
+DATA_DIR="${DATA_DIR:-/opt/komms-data}"
 DOMAIN="${DOMAIN:?DOMAIN not set in .env}"
 LDAP_ADMIN_PASS="${LDAP_ADMIN_PASS:?LDAP_ADMIN_PASS not set in .env}"
 LDAP_BASE_DN="${LDAP_BASE_DN:-dc=komms,dc=local}"
@@ -88,7 +89,7 @@ for cmd in curl jq qrencode openssl docker zip; do
 done
 
 # ── Output directory ──────────────────────────────────────────────────────────
-USER_DIR="$KOMMS_DIR/users/$USERNAME"
+USER_DIR="$DATA_DIR/users/$USERNAME"
 mkdir -p "$USER_DIR"
 chmod 700 "$USER_DIR"
 

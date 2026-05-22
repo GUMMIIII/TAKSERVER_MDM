@@ -19,8 +19,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KOMMS_DIR="$(dirname "$SCRIPT_DIR")"
 ENV_FILE="$SCRIPT_DIR/.env"
-TAK_RELEASE_DIR="$KOMMS_DIR/tak-release"
-TAK_CFG_DIR="$SCRIPT_DIR/takserver"
+TAK_CFG_DIR="$SCRIPT_DIR/takserver"   # template source (repo)
 
 RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m'
 BLUE='\033[0;34m' CYAN='\033[0;36m' BOLD='\033[1m' NC='\033[0m'
@@ -36,6 +35,9 @@ step() { echo -e "\n${BOLD}${BLUE}▶  $*${NC}"; }
 [[ -f "$ENV_FILE" ]] || err ".env not found at $ENV_FILE"
 # shellcheck source=/dev/null
 set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a
+
+DATA_DIR="${DATA_DIR:-/opt/komms-data}"
+TAK_RELEASE_DIR="$DATA_DIR/tak-release"
 
 DOMAIN="${DOMAIN:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
 DB_USER="${DB_USER:-komms}"
@@ -89,7 +91,7 @@ TAK_APP_SRC="${TAK_ZIP_ROOT}/tak"
     err "Cannot find tak/ directory in zip (expected ${TAK_APP_SRC}).\nContents:\n$(find "$TMP_EXTRACT" -maxdepth 3 -type d | head -20)"
 ok "Found TAK application files: $TAK_APP_SRC"
 
-TAK_DIR="$KOMMS_DIR/tak"
+TAK_DIR="$DATA_DIR/tak"
 if [[ ! -f "$TAK_DIR/takserver.war" ]]; then
     info "Copying TAK application files to $TAK_DIR ..."
     mkdir -p "$TAK_DIR"
@@ -151,8 +153,9 @@ info "Updated TAK_IMAGE in .env → $TAK_IMAGE"
 
 # ── [4] Patch CoreConfig.xml ──────────────────────────────────────────────────
 step "[4/5] Configuring TAKServer"
-mkdir -p "$TAK_CFG_DIR"
-CORE_CFG_TPL="$TAK_CFG_DIR/CoreConfig.xml"
+mkdir -p "$DATA_DIR/config/takserver"
+CORE_CFG_TPL="$TAK_CFG_DIR/CoreConfig.xml"       # template stays in repo
+CORE_CFG="$DATA_DIR/config/takserver/CoreConfig.xml"  # generated, bind-mounted
 [[ -f "$CORE_CFG_TPL" ]] || err "CoreConfig.xml template not found at $CORE_CFG_TPL"
 
 LDAP_BASE_DN_VAL="${LDAP_BASE_DN:-dc=komms,dc=local}"
@@ -165,9 +168,8 @@ sed \
     -e "s|KOMMS_SERVER_HOST|${DOMAIN}|g" \
     -e "s|KOMMS_LDAP_ADMIN_PASS|${LDAP_ADMIN_PASS_VAL}|g" \
     -e "s|KOMMS_LDAP_BASE_DN|${LDAP_BASE_DN_VAL}|g" \
-    "$CORE_CFG_TPL" > "${CORE_CFG_TPL}.active"
-mv "${CORE_CFG_TPL}.active" "$CORE_CFG_TPL"
-ok "CoreConfig.xml patched"
+    "$CORE_CFG_TPL" > "$CORE_CFG"
+ok "CoreConfig.xml generated → $DATA_DIR/config/takserver/"
 
 # Write cert-metadata.sh to the bind-mount path so cert scripts pick it up
 cat > "${TAK_DIR}/certs/cert-metadata.sh" << EOF
@@ -327,7 +329,7 @@ if '<federation-server' not in txt:
 open(cfg, 'w').write(txt)
 PYEOF
 python3 "$_PAT" \
-    "$CORE_CFG_TPL" \
+    "$CORE_CFG" \
     "$TAK_CERT_PASS" \
     "${LDAP_BASE_DN:-dc=komms,dc=local}" \
     "${LDAP_ADMIN_PASS:-}" \
