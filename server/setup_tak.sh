@@ -233,14 +233,16 @@ else
     # Create a legacy-format copy of admin.p12 for browser import.
     # Java keytool generates PKCS12 with PBES2/AES-256-CBC which some browsers reject.
     # OpenSSL -legacy produces SHA1/RC2 which every browser accepts.
-    openssl pkcs12 \
-        -in  "${TAK_DIR}/certs/files/admin.p12" -passin  "pass:${TAK_CERT_PASS}" -nodes \
-        2>/dev/null | \
-    openssl pkcs12 -export -legacy \
-        -out "${TAK_DIR}/certs/files/admin-browser.p12" -passout "pass:${TAK_CERT_PASS}" \
-        2>/dev/null \
-        && ok "TAKServer certificates generated (admin-browser.p12 ready for browser import)" \
-        || ok "TAKServer certificates generated (admin.p12 ready for browser import)"
+    if openssl pkcs12 \
+        -in  "${TAK_DIR}/certs/files/admin.p12" -passin  "pass:${TAK_CERT_PASS}" -nodes 2>&1 | \
+       openssl pkcs12 -export -legacy \
+        -out "${TAK_DIR}/certs/files/admin-browser.p12" -passout "pass:${TAK_CERT_PASS}" 2>&1; then
+        ok "TAKServer certificates generated (admin-browser.p12 ready for browser import)"
+    else
+        warn "admin-browser.p12 conversion failed — run manually on the server:"
+        warn "  source /opt/komms-data/.env && openssl pkcs12 -in ${TAK_DIR}/certs/files/admin.p12 -passin pass:\${TAK_CERT_PASS} -nodes | openssl pkcs12 -export -legacy -out ${TAK_DIR}/certs/files/admin-browser.p12 -passout pass:\${TAK_CERT_PASS}"
+        ok "TAKServer certificates generated (admin.p12 available as fallback)"
+    fi
 fi
 
 # Enable PostGIS in the tak database (required by TAKServer, CASCADE handles deps)
