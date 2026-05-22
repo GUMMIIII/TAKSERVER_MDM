@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Planned
+- **SSO-only login for Element + Nextcloud** — disable password login, enforce Authelia SSO as the only auth path
+- **Collabora Online** — integrated document editing inside Nextcloud (CODE server, single container)
+- **Jitsi Meet** — self-hosted video conferencing (jitsi-web, prosody, jicofo, jvb containers) behind nginx + Authelia
+- **Modular installer** — service selection via `whiptail` at install time; Docker Compose profiles so unused services are never started
+- **English documentation** — parallel EN docs alongside the existing German docs (or EN as primary)
+- **ARM64 TAKServer build** — auto-detection of architecture in `setup_tak.sh`; Dockerfile for building TAKServer on ARM64 (Raspberry Pi 4/5, cloud ARM instances)
+
+---
+
 ## [0.1.0] – 2026-05-22
 
 ### Added
