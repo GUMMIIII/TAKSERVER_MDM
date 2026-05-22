@@ -16,6 +16,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.5] – 2026-05-22
+
+### Fixed
+- `setup_tak.sh`: removed `keytool` re-encoding step that produced PBES2/AES-256-CBC PKCS12; replaced with OpenSSL `-legacy` conversion to create `admin-browser.p12` (SHA1/RC2) — compatible with all browsers
+
+---
+
 ## [0.0.4] – 2026-05-22
 
 ### Changed
