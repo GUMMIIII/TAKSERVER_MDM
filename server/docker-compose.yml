@@ -315,7 +315,7 @@ services:
 
   # ── Nextcloud ────────────────────────────────────────────────────────────
   nextcloud:
-    image: nextcloud:30-apache
+    image: nextcloud:33-apache
     container_name: komms_nextcloud
     restart: unless-stopped
     environment:
