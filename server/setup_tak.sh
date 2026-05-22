@@ -327,13 +327,14 @@ txt = re.sub(r'<security>\s*<tls[^>]*/>\s*</security>', add_keymanager, txt, fla
 
 # 3. Set clientAuth="NONE" on port 8443 (WebTAK / admin UI) connector.
 #    Spring Boot maps this to Ssl.ClientAuth enum — valid values: NEED, NONE, WANT.
-#    Without this, Tomcat requires a client certificate from browsers/nginx (→ 502).
+#    NONE: nginx proxies to TAKServer without a client cert → no 502.
+#    Without this, TAKServer defaults to NEED → TLS alert "certificate required".
 def fix_8443_client_auth(m):
     s = m.group(0)
     if 'clientAuth=' not in s:
-        s = s.replace('<connector port="8443"', '<connector port="8443" clientAuth="WANT"', 1)
+        s = s.replace('<connector port="8443"', '<connector port="8443" clientAuth="NONE"', 1)
     else:
-        s = re.sub(r'clientAuth="(?!WANT|NEED)[^"]*"', 'clientAuth="WANT"', s)
+        s = re.sub(r'clientAuth="[^"]*"', 'clientAuth="NONE"', s)
     return s
 txt = re.sub(r'<connector port="8443"[^/]*/>', fix_8443_client_auth, txt)
 
@@ -357,7 +358,7 @@ python3 "$_PAT" \
     "$TAK_CERT_PASS" \
     "${LDAP_BASE_DN:-dc=komms,dc=local}" \
     "${LDAP_ADMIN_PASS:-}" \
-    && ok "CoreConfig.xml patched (TAK 5.7 LDAP + TLS + clientAuth)" \
+    && ok "CoreConfig.xml patched (TAK 5.7 LDAP + TLS + clientAuth=NONE on 8443)" \
     || warn "CoreConfig.xml patch failed — WebTAK auth may not work"
 rm -f "$_PAT"
 
