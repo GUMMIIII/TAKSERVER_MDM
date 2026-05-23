@@ -332,6 +332,10 @@ if [[ -f "$TAK_DIR/certs/files/admin.p12" ]]; then
     rm -f "$_TMP_ADM"
     chmod 600 "$_NGINX_CERT_DIR/tak-admin.key"
     ok "Admin cert extracted → $_NGINX_CERT_DIR/tak-admin.{crt,key}"
+    # Reload nginx so it picks up the real cert (replaces the placeholder from setup_server.sh)
+    docker exec komms_nginx nginx -s reload 2>/dev/null || \
+        docker compose restart nginx 2>/dev/null || true
+    ok "nginx reloaded with tak-admin cert"
 fi
 
 # Enable PostGIS in the tak database (required by TAKServer, CASCADE handles deps)

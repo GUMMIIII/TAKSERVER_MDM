@@ -155,6 +155,14 @@ else
     fi
 fi
 
+# Placeholder tak-admin cert so nginx can start before setup_tak.sh runs.
+# setup_tak.sh overwrites these with the real admin cert extracted from admin.p12.
+if [[ ! -f "$CERT_DIR/tak-admin.crt" ]]; then
+    cp "$CERT_DIR/komms.crt" "$CERT_DIR/tak-admin.crt"
+    cp "$CERT_DIR/komms.key" "$CERT_DIR/tak-admin.key"
+    chmod 600 "$CERT_DIR/tak-admin.key"
+fi
+
 # ── [3] Generate configs ──────────────────────────────────────────────────────
 step "[3/7] Generating service configuration"
 
