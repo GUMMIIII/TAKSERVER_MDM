@@ -357,6 +357,22 @@ SECURITY: Delete this file after distribution.
 CREDS
 chmod 600 "$USER_DIR/credentials.txt"
 
+# ── QR code (generated before NC upload so it can be included) ───────────────
+QR_TEXT="KOMMS LOGIN
+━━━━━━━━━━━━━━━━━━━
+User:  ${USERNAME}
+Pass:  ${USER_PASS}
+━━━━━━━━━━━━━━━━━━━
+${NC_URL}
+━━━━━━━━━━━━━━━━━━━
+1. Login to Nextcloud
+2. Download .ovpn
+3. Connect VPN"
+
+qrencode -o "$USER_DIR/qr-credentials.png" -s 8 -m 2 -l M "$QR_TEXT" \
+    && ok "Credentials QR: qr-credentials.png" \
+    || warn "qrencode not installed — QR skipped (apt install qrencode)"
+
 # ── [4] Upload files to Nextcloud ────────────────────────────────────────────
 step "[4/6] Uploading files to Nextcloud"
 info "Files will be shared with the user — accessible after first login to ${NC_URL}"
@@ -402,6 +418,8 @@ if docker exec komms_nextcloud curl -sf --max-time 5 http://localhost/status.php
     _upload_ok=true
     _nc_upload "$OVPN_OUT"              "${USERNAME}.ovpn"      || { warn "Upload failed: ${USERNAME}.ovpn";      _upload_ok=false; }
     _nc_upload "$USER_DIR/credentials.txt" "credentials.txt"   || { warn "Upload failed: credentials.txt";       _upload_ok=false; }
+    [[ -f "$USER_DIR/qr-credentials.png" ]] && \
+        { _nc_upload "$USER_DIR/qr-credentials.png" "qr-credentials.png" || warn "Upload failed: qr-credentials.png"; }
     [[ "$TAK_ZIP_DONE"  == "true" ]] && \
         { _nc_upload "$TAK_ZIP_OUT" "${USERNAME}-tak.zip" || { warn "Upload failed: ${USERNAME}-tak.zip"; _upload_ok=false; }; }
     [[ "$TAK_CERT_DONE" == "true" ]] && \
@@ -434,24 +452,14 @@ else
 fi
 
 # ── [5] Credentials QR code ───────────────────────────────────────────────────
-step "[5/6] Generating credentials QR code"
-info "User scans this QR to get login credentials, then downloads their files from Nextcloud."
-
-MATRIX_HANDLE="@${USERNAME}:${MATRIX_DOMAIN:-$DOMAIN}"
-
-QR_TEXT="KOMMS LOGIN
-━━━━━━━━━━━━━━━━━━━
-User:  ${USERNAME}
-Pass:  ${USER_PASS}
-━━━━━━━━━━━━━━━━━━━
-${NC_URL}
-━━━━━━━━━━━━━━━━━━━
-1. Login to Nextcloud
-2. Download .ovpn
-3. Connect VPN"
-
-qrencode -o "$USER_DIR/qr-credentials.png" -s 8 -m 2 -l M "$QR_TEXT"
-ok "Credentials QR: qr-credentials.png"
+step "[5/6] Credentials QR code"
+if [[ -f "$USER_DIR/qr-credentials.png" ]]; then
+    ok "qr-credentials.png ready — show this to ${USERNAME} to onboard them"
+    info "QR contains: username, password, Nextcloud URL + onboarding steps"
+    [[ "$NC_UPLOAD_DONE" == "true" ]] && info "Also uploaded to Nextcloud: KOMMS-Users/${USERNAME}/qr-credentials.png"
+else
+    warn "QR not generated (qrencode missing?)"
+fi
 
 # ── [6] Credentials summary ───────────────────────────────────────────────────
 step "[6/6] Saving credentials"
