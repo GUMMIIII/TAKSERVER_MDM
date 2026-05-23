@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.6] – 2026-05-23
+
+### Fixed
+
+- **TAKServer WebTAK static files** — `setup_tak.sh` now extracts WAR-root content (`webtak/`, `Marti/`, `index.html`) to `$TAK_DIR/webcontent/` and patches `setenv.sh` with `-Dspring.web.resources.static-locations`. Spring Boot PropertiesLauncher does not add WAR-root to the classpath, so without this fix WebTAK returns HTTP 200 with Content-Length 0.
+- **HikariPool size = 1** — Python post-patch now explicitly sets `connectionPoolAutoSize="false" numDbConnections="16"` on `<repository>`. When `enable="false"`, `DataSourceUtils` skips the `SHOW max_connections` query, `maxConnections` stays 0, and the auto-size formula computes pool = 1 — causing all DB calls (`isAdmin()`, etc.) to time out after 250 ms.
+- **LDAP userstring placeholder** — Python post-patch now writes `uid={username},...` (TAKServer 5.7 format). Previously `uid=%s,...` caused TAKServer to authenticate the literal string `%s` against LLDAP → error 49 invalid credentials.
+- **Server certificate hostname** — `setup_tak.sh` now generates the server certificate with `CN=tak.${DOMAIN}` and `SAN=tak.${DOMAIN}` instead of `CN=takserver`. The internal hostname `takserver` is not valid for the public domain; browsers blocked access to port 8443 with `SSL_ERROR_BAD_CERT_DOMAIN` and HSTS preventing exceptions.
+- **nginx proxy target** — nginx now proxies `tak.DOMAIN` → TAKServer port `8446` (was `8443`). Port 8446 has `ROLE_NO_CLIENT_CERT` in `portRoleMap`, making `/login` and `/oauth/token` accessible without a client certificate. Port 8443 is reserved for certificate-based Marti Dashboard access (`clientAuth="WANT"`).
+
+### Changed
+
+- **Port 8443 `clientAuth`** — Changed from `NONE` to `WANT` in `CoreConfig.xml` template and Python post-patch. `WANT` lets the server request an optional client certificate: normal users log in via LDAP without a cert; the admin cert (`admin.p12`) grants `ROLE_ADMIN` via `UserAuthenticationFile.xml` fingerprint matching — which is required to access the Marti Dashboard.
+
+### Added
+
+- **Marti Dashboard access** — Full operator instructions for one-time browser setup: download `ca.pem` + `admin-browser.p12`, import both into Firefox, then navigate to `https://tak.DOMAIN:8443/Marti/metrics/index.html`.
+
+---
+
 ## [Unreleased]
 
 ### Planned

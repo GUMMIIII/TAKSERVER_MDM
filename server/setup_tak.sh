@@ -103,6 +103,42 @@ else
 fi
 mkdir -p "$TAK_DIR/logs" "$TAK_DIR/certs/files"
 
+# ── [2c] Extract WebTAK static files from the TAKServer WAR ──────────────────
+# Spring Boot PropertiesLauncher does not add WAR-root content (webtak/, Marti/,
+# index.html) to the classpath — only WEB-INF/classes/ is visible.  Extracting
+# to webcontent/ and pointing spring.web.resources.static-locations there fixes
+# WebTAK returning HTTP 200 with Content-Length: 0.
+if [[ ! -d "$TAK_DIR/webcontent/webtak" ]]; then
+    if [[ -f "$TAK_DIR/takserver.war" ]]; then
+        info "Extracting WebTAK static files from takserver.war..."
+        mkdir -p "$TAK_DIR/webcontent"
+        unzip -q -o "$TAK_DIR/takserver.war" -d "$TAK_DIR/webcontent"
+        rm -rf "$TAK_DIR/webcontent/WEB-INF" "$TAK_DIR/webcontent/META-INF"
+        ok "WebTAK static files extracted → $TAK_DIR/webcontent/"
+    else
+        warn "takserver.war not found — WebTAK extraction skipped (will retry after image load)"
+    fi
+else
+    ok "WebTAK static files already at $TAK_DIR/webcontent/"
+fi
+
+# ── [2d] Patch setenv.sh with spring.web.resources.static-locations ──────────
+SETENV_FILE="$TAK_DIR/setenv.sh"
+if [[ -f "$SETENV_FILE" ]] && ! grep -q "spring.web.resources.static-locations" "$SETENV_FILE"; then
+    cat >> "$SETENV_FILE" << 'SETENVEOF'
+
+# Serve WAR-root static content (webtak/, Marti/, index.html) from the filesystem.
+# Spring Boot PropertiesLauncher does not place WAR-root on its classpath; without
+# this property WebTAK returns HTTP 200 with an empty body (Content-Length: 0).
+export JDK_JAVA_OPTIONS="${JDK_JAVA_OPTIONS} -Dspring.web.resources.static-locations=file:/opt/tak/webcontent/,classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/"
+SETENVEOF
+    ok "setenv.sh patched with spring.web.resources.static-locations"
+elif grep -q "spring.web.resources.static-locations" "$SETENV_FILE" 2>/dev/null; then
+    ok "setenv.sh already has spring.web.resources.static-locations"
+else
+    warn "setenv.sh not found at $SETENV_FILE — will be patched after image load"
+fi
+
 # Write TAK_DIR to .env so docker-compose can bind-mount it
 grep -q "^TAK_DIR=" "$ENV_FILE" && \
     sed -i "s|^TAK_DIR=.*|TAK_DIR=\"$TAK_DIR\"|" "$ENV_FILE" || \
@@ -225,10 +261,30 @@ else
         set -e
         cd /opt/tak/certs
         ./makeRootCa.sh --ca-name KOMMSca 2>&1
-        ./makeCert.sh server takserver 2>&1
+        ./makeCert.sh server tak.${DOMAIN} 2>&1
+        # Keep takserver.jks as the filename CoreConfig.xml expects.
+        # The cert itself is issued for tak.${DOMAIN} so browsers accept it.
+        cp files/tak.${DOMAIN}.jks files/takserver.jks
         ./makeCert.sh client admin 2>&1
         echo 'Certificates generated successfully.'
     " || err "Certificate generation failed — check: docker compose logs takserver"
+    # Extract WebTAK if takserver.war was not yet present during step 2c
+    if [[ ! -d "$TAK_DIR/webcontent/webtak" && -f "$TAK_DIR/takserver.war" ]]; then
+        info "Extracting WebTAK static files (deferred — WAR was not available in step 2)..."
+        mkdir -p "$TAK_DIR/webcontent"
+        unzip -q -o "$TAK_DIR/takserver.war" -d "$TAK_DIR/webcontent"
+        rm -rf "$TAK_DIR/webcontent/WEB-INF" "$TAK_DIR/webcontent/META-INF"
+        ok "WebTAK static files extracted → $TAK_DIR/webcontent/"
+    fi
+    # Patch setenv.sh if not done in step 2d
+    if [[ -f "$SETENV_FILE" ]] && ! grep -q "spring.web.resources.static-locations" "$SETENV_FILE"; then
+        cat >> "$SETENV_FILE" << 'SETENVEOF'
+
+# Serve WAR-root static content (webtak/, Marti/, index.html) from the filesystem.
+export JDK_JAVA_OPTIONS="${JDK_JAVA_OPTIONS} -Dspring.web.resources.static-locations=file:/opt/tak/webcontent/,classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/"
+SETENVEOF
+        ok "setenv.sh patched (deferred)"
+    fi
     # Produce admin-browser.p12 for browser import.
     # TAKServer cert format depends on the Java version in the container:
     #   - Java 8/11 (older images): RC2/3DES PKCS12 — already browser-compatible, just copy
@@ -304,7 +360,7 @@ txt = open(cfg).read()
 new_auth = (
     '<auth default="ldap" x509groups="true" x509addAnonymous="false">'
     '<ldap url="ldap://lldap:3890"'
-    ' userstring="uid=%s,ou=people,' + lbase + '"'
+    ' userstring="uid={username},ou=people,' + lbase + '"'
     ' serviceAccountDN="uid=admin,ou=people,' + lbase + '"'
     ' serviceAccountCredential="' + lpw + '"'
     ' style="DS"'
@@ -325,15 +381,17 @@ def add_keymanager(m):
     return s
 txt = re.sub(r'<security>\s*<tls[^>]*/>\s*</security>', add_keymanager, txt, flags=re.DOTALL)
 
-# 3. Ensure clientAuth="NONE" on port 8443 (WebTAK / admin UI) connector.
+# 3. Ensure clientAuth="WANT" on port 8443 (WebTAK / Marti admin UI) connector.
 #    TAK 5.7 uses Spring Boot enum values: NONE / NEED / WANT (not true/false).
-#    The connector is single-line with / chars in paths — use [^>]*/> to match.
+#    WANT: server requests client cert but does not require it — normal WebTAK
+#    users can still log in via LDAP, while the admin cert grants ROLE_ADMIN
+#    when presented (cert fingerprint matched in UserAuthenticationFile.xml).
 def fix_8443_client_auth(m):
     s = m.group(0)
     if 'clientAuth=' not in s:
-        s = s.replace('<connector port="8443"', '<connector port="8443" clientAuth="NONE"', 1)
+        s = s.replace('<connector port="8443"', '<connector port="8443" clientAuth="WANT"', 1)
     else:
-        s = re.sub(r'clientAuth="[^"]*"', 'clientAuth="NONE"', s)
+        s = re.sub(r'clientAuth="[^"]*"', 'clientAuth="WANT"', s)
     return s
 txt = re.sub(r'<connector port="8443"[^>]*/>', fix_8443_client_auth, txt)
 
@@ -346,7 +404,22 @@ txt = re.sub(
     txt
 )
 
-# 5. Add <federation-server> inside <federation> if takserver.war hasn't done it yet.
+# 5. Ensure connectionPoolAutoSize="false" numDbConnections="16" on <repository>.
+#    When enable="false", DataSourceUtils skips the SHOW max_connections query,
+#    maxConnections stays 0, auto-size formula computes pool=1, and every DB
+#    call (including isAdmin()) times out after 250 ms. This bypasses the formula.
+def fix_repo_pool(m):
+    s = m.group(0)
+    if 'connectionPoolAutoSize=' not in s:
+        s = s.replace('<repository', '<repository connectionPoolAutoSize="false" numDbConnections="16"', 1)
+    else:
+        s = re.sub(r'connectionPoolAutoSize="[^"]*"', 'connectionPoolAutoSize="false"', s)
+        if 'numDbConnections=' not in s:
+            s = s.replace('connectionPoolAutoSize="false"', 'connectionPoolAutoSize="false" numDbConnections="16"', 1)
+    return s
+txt = re.sub(r'<repository\b[^>]*>', fix_repo_pool, txt)
+
+# 6. Add <federation-server> inside <federation> if takserver.war hasn't done it yet.
 #    DistributedFederationManager.init() unconditionally calls getFederationServer().getTls()
 #    which NPEs if the element is absent, even when federation is disabled.
 if '<federation-server' not in txt:
@@ -369,7 +442,7 @@ python3 "$_PAT" \
     "jdbc:postgresql://postgres:5432/tak" \
     "$DB_USER" \
     "$DB_PASS" \
-    && ok "CoreConfig.xml patched (TAK 5.7 LDAP + TLS + clientAuth=NONE + DB URL)" \
+    && ok "CoreConfig.xml patched (TAK 5.7: LDAP {username}, clientAuth=WANT, pool=16, DB URL)" \
     || warn "CoreConfig.xml patch failed — WebTAK auth / DB may not work"
 rm -f "$_PAT"
 
@@ -417,17 +490,19 @@ echo ""
 echo -e "${GREEN}${BOLD}  ✔  TAKServer setup complete!${NC}"
 echo ""
 echo -e "  ${YELLOW}Access URLs:${NC}"
-echo -e "  WebTAK / Marti:    ${CYAN}https://tak.${DOMAIN}${NC}  (VPN + Authelia — recommended)"
+echo -e "  WebTAK (users):    ${CYAN}https://tak.${DOMAIN}${NC}  (VPN + Authelia login)"
+echo -e "  Marti Dashboard:   ${CYAN}https://tak.${DOMAIN}:8443/Marti/metrics/index.html${NC}  (admin cert required)"
 echo -e "  ATAK client port:  ${CYAN}${DOMAIN}:8089 (TLS)${NC}"
 echo -e "  Cert enrollment:   ${CYAN}https://${DOMAIN}:8444${NC}"
-echo -e "  ${YELLOW}Note:${NC} Do NOT open https://${DOMAIN}:8443 directly in a browser."
-echo -e "       The TAKServer cert is issued for CN=takserver (not ${DOMAIN})."
-echo -e "       Browsers block it with HSTS and no exception can be added."
 echo ""
-echo -e "  ${YELLOW}Browser setup (one-time, on your local machine):${NC}"
+echo -e "  ${YELLOW}One-time browser setup (admin machine only):${NC}"
+echo -e "  # Download certs:"
 echo -e "  ${CYAN}scp root@${DOMAIN}:${TAK_DIR}/certs/files/ca.pem             ~/Downloads/tak-ca.pem${NC}"
 echo -e "  ${CYAN}scp root@${DOMAIN}:${TAK_DIR}/certs/files/admin-browser.p12 ~/Downloads/admin-browser.p12${NC}"
 echo ""
-echo -e "  The admin browser cert is only needed for native TAK clients (ATAK/WinTAK),"
-echo -e "  not for the web UI. Access the web UI via ${CYAN}https://tak.${DOMAIN}${NC} (VPN + Authelia)."
+echo -e "  # Firefox: Settings → Privacy & Security → View Certificates"
+echo -e "  #   Authorities tab  → Import tak-ca.pem          (tick 'identify websites')"
+echo -e "  #   Your Certs tab   → Import admin-browser.p12   (password: ${TAK_CERT_PASS})"
+echo -e "  # Then open ${CYAN}https://tak.${DOMAIN}:8443/Marti/metrics/index.html${NC}"
+echo -e "  # Firefox will ask which cert to present — select admin → Marti Dashboard opens."
 echo ""

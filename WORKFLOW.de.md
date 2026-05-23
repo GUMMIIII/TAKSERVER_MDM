@@ -477,11 +477,13 @@ sudo bash /opt/komms/server/add_user.sh <username> "Anzeigename"
 ### Was setup_tak.sh macht
 
 1. ZIP entpacken + Docker-Image bauen (~5 Min)
-2. CA, Server-Zertifikat und Admin-Client-Zertifikat generieren
-3. PostgreSQL-Datenbankschema initialisieren
-4. Container neu starten, auf Port 8443 warten
-5. **60 Sekunden** warten bis Apaches Ignite-Grid vollständig initialisiert ist
-6. `certmod` ausführen um `ROLE_ADMIN` für das Admin-Zertifikat zu setzen (bis zu 3 Versuche)
+2. WebTAK-Dateien aus der WAR nach `$TAK_DIR/webcontent/` extrahieren; `setenv.sh` mit Static-Locations-Property patchen
+3. CA, Server-Zertifikat (`CN=tak.DOMAIN`) und Admin-Client-Zertifikat generieren
+4. PostgreSQL-Datenbankschema initialisieren
+5. `CoreConfig.xml` nach dem TAKServer-Neuschreiben nachpatchen (LDAP `{username}`, `clientAuth=WANT`, Pool-Größe, DB-URL)
+6. Container neu starten, auf Port 8443 warten
+7. **60 Sekunden** warten bis Apaches Ignite-Grid vollständig initialisiert ist
+8. `certmod` ausführen um `ROLE_ADMIN` für das Admin-Zertifikat zu setzen (bis zu 3 Versuche)
 
 ### Warum dauert das so lange?
 
@@ -493,6 +495,30 @@ Falls `certmod` trotzdem fehlschlägt, manuell nachführen:
 docker exec komms_tak bash -c \
   'cd /opt/tak && java -jar utils/UserManager.jar certmod -A certs/files/admin.pem'
 ```
+
+### Marti-Dashboard (nur Admin)
+
+Das Marti-Admin-Dashboard (`/Marti/metrics/index.html`) erfordert `ROLE_ADMIN`. LDAP-Nutzer — einschließlich des `admin`-Kontos — erhalten diese Rolle nicht. Sie wird ausschließlich über Zertifikatsauthentifizierung vergeben, die gegen `UserAuthenticationFile.xml` geprüft wird.
+
+**Einmalige Einrichtung (Admin-Rechner):**
+
+```bash
+# Zertifikate vom Server herunterladen:
+scp root@DEIN_SERVER:/opt/komms-data/tak/certs/files/ca.pem             ~/Downloads/tak-ca.pem
+scp root@DEIN_SERVER:/opt/komms-data/tak/certs/files/admin-browser.p12  ~/Downloads/admin-browser.p12
+```
+
+Beide in Firefox importieren:
+- **Einstellungen → Datenschutz & Sicherheit → Zertifikate anzeigen**
+  - Tab **Zertifizierungsstellen** → Importieren `tak-ca.pem` → Häkchen bei *„Diese CA kann Websites identifizieren"*
+  - Tab **Ihre Zertifikate** → Importieren `admin-browser.p12` → Passwort: `atakatak` (oder dein `TAK_CERT_PASS`)
+
+Dann `https://tak.DEINE_DOMAIN:8443/Marti/metrics/index.html` aufrufen.  
+Firefox fragt welches Zertifikat präsentiert werden soll → **admin** auswählen → Marti-Dashboard öffnet sich.
+
+> **Port 8443 vs. tak.DOMAIN:**  
+> `tak.DOMAIN` (Port 443, über nginx) leitet an TAKServer-Port 8446 weiter — für normale WebTAK-Nutzer mit LDAP-Login.  
+> Port 8443 ist direkt über Docker erreichbar und nutzt `clientAuth=WANT` — optionale Client-Zertifikate sind möglich, normale LDAP-Nutzer werden nicht beeinträchtigt.
 
 ---
 

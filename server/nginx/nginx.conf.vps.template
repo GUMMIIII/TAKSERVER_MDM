@@ -368,8 +368,8 @@ http {
         ssl_protocols       TLSv1.2 TLSv1.3;
         ssl_ciphers         HIGH:!aNULL:!MD5;
         ssl_session_cache   shared:SSL:10m;
-        # No HSTS here: users need to be able to access TAKServer directly
-        # on port 8443 (client-cert auth) without HSTS blocking the exception.
+        # No HSTS: keep it at 0 so browsers don't cache strict-transport-security
+        # for this host and block the direct port-8443 access used for Marti Dashboard.
         add_header Strict-Transport-Security "max-age=0" always;
 
         location / {
@@ -380,12 +380,15 @@ http {
             error_page 401   =302 https://auth.${DOMAIN}/?rd=$target_url;
             proxy_set_header Remote-User $user;
 
+            # Port 8446: clientAuth=NONE + ROLE_NO_CLIENT_CERT + ROLE_WEBTAK.
+            # Port 8443: clientAuth=WANT — requires client cert for ROLE_ADMIN (Marti).
+            # nginx proxies on 8446 so normal LDAP users can log in via /login.
             resolver            127.0.0.11 valid=5s;
-            set $tak_backend    https://takserver:8443;
+            set $tak_backend    https://takserver:8446;
             proxy_pass          $tak_backend;
             proxy_ssl_verify    off;
-            proxy_redirect      https://localhost:8443/ https://$host/;
-            proxy_redirect      https://takserver:8443/ https://$host/;
+            proxy_redirect      https://localhost:8446/ https://$host/;
+            proxy_redirect      https://takserver:8446/ https://$host/;
             proxy_set_header    Host              $host;
             proxy_set_header    X-Real-IP         $remote_addr;
             proxy_set_header    X-Forwarded-For   $proxy_add_x_forwarded_for;

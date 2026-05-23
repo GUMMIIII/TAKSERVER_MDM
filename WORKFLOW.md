@@ -481,11 +481,13 @@ sudo bash /opt/komms/server/add_user.sh <username> "Display Name"
 ### What setup_tak.sh does
 
 1. Extracts the ZIP and builds the TAKServer Docker image (~5 min)
-2. Generates the CA, server certificate, and admin client certificate
-3. Initializes the TAKServer PostgreSQL database schema
-4. Restarts the container and waits for port 8443 to open
-5. Waits **60 seconds** for TAKServer's Apache Ignite grid to fully initialize
-6. Runs `certmod` to grant `ROLE_ADMIN` to the admin certificate (retries up to 3×)
+2. Extracts WebTAK static files from the WAR to `$TAK_DIR/webcontent/`; patches `setenv.sh` with the static-locations property
+3. Generates the CA, server certificate (`CN=tak.DOMAIN`), and admin client certificate
+4. Initializes the TAKServer PostgreSQL database schema
+5. Re-patches `CoreConfig.xml` after TAKServer rewrites it on first boot (LDAP `{username}`, `clientAuth=WANT`, pool size, DB URL)
+6. Restarts the container and waits for port 8443 to open
+7. Waits **60 seconds** for TAKServer's Apache Ignite grid to fully initialize
+8. Runs `certmod` to grant `ROLE_ADMIN` to the admin certificate (retries up to 3×)
 
 ### Why does it take so long?
 
@@ -497,6 +499,30 @@ If `certmod` fails despite the wait, run it manually:
 docker exec komms_tak bash -c \
   'cd /opt/tak && java -jar utils/UserManager.jar certmod -A certs/files/admin.pem'
 ```
+
+### Marti Dashboard (admin only)
+
+The Marti admin dashboard (`/Marti/metrics/index.html`) requires `ROLE_ADMIN`. LDAP users — including the `admin` account — do not receive this role. It is granted exclusively via certificate authentication matched against `UserAuthenticationFile.xml`.
+
+**One-time setup (admin machine):**
+
+```bash
+# Download the TAK CA and admin certificate from the server:
+scp root@YOUR_SERVER:/opt/komms-data/tak/certs/files/ca.pem             ~/Downloads/tak-ca.pem
+scp root@YOUR_SERVER:/opt/komms-data/tak/certs/files/admin-browser.p12  ~/Downloads/admin-browser.p12
+```
+
+Import both into Firefox:
+- **Settings → Privacy & Security → View Certificates**
+  - **Authorities** tab → Import `tak-ca.pem` → tick *"This CA can identify websites"*
+  - **Your Certificates** tab → Import `admin-browser.p12` → password: `atakatak` (or your `TAK_CERT_PASS`)
+
+Navigate to `https://tak.YOUR_DOMAIN:8443/Marti/metrics/index.html`  
+Firefox will ask which certificate to present — select **admin** → Marti Dashboard loads.
+
+> **Port 8443 vs tak.DOMAIN:**  
+> `tak.DOMAIN` (port 443, via nginx) proxies to TAKServer port 8446 for normal WebTAK access.  
+> Port 8443 is exposed directly by Docker and uses `clientAuth=WANT` — it accepts optional client certificates, enabling cert-based admin login without disturbing normal LDAP users.
 
 ---
 
