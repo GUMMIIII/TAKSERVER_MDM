@@ -392,7 +392,6 @@ http {
         add_header Strict-Transport-Security "max-age=0" always;
 
         location / {
-            if ($vpn_ip = 0) { return 403; }
             auth_request     /authelia;
             auth_request_set $target_url $scheme://$http_host$request_uri;
             auth_request_set $user       $upstream_http_remote_user;

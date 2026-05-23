@@ -77,6 +77,7 @@ else
     ufw allow 443/tcp   comment "HTTPS"
     ufw allow "${VPN_PORT:-1194}/udp" comment "OpenVPN"
     ufw allow 8089/tcp  comment "ATAK/WinTAK TLS"
+    ufw allow 8443/tcp  comment "TAKServer Marti Dashboard + WebTAK"
     ufw allow 8444/tcp  comment "TAKServer cert enrollment"
     ufw allow 64738/tcp comment "Mumble TCP"
     ufw allow 64738/udp comment "Mumble UDP"
