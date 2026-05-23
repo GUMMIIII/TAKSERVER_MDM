@@ -6,6 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.7] – 2026-05-23
+
+### Added
+
+- **Mumble TCP/UDP stream proxy via nginx** — Port 64738 (TCP + UDP) moved from the mumble container to the nginx container. nginx proxies Mumble at the stream layer, making the server reachable via domain name (`mumble.DOMAIN:64738`) and externally by IP. Previously Mumble was only reachable at `IP:64738` because the port was not routed through nginx.
+- **QR code uploaded to Nextcloud** — `add_user.sh` now uploads `qr-credentials.png` to `KOMMS-Users/<username>/` in Nextcloud alongside `.ovpn`, `credentials.txt`, and TAK files. The operator can distribute the onboarding QR directly from the Nextcloud share without accessing the server filesystem.
+
+### Changed
+
+- **TAKServer nginx proxy — transparent mTLS** — nginx now proxies all paths on `tak.DOMAIN` to TAKServer port `8443` and automatically presents the admin certificate (`tak-admin.crt/key`, extracted from `admin.p12` by `setup_tak.sh`). Both WebTAK and the Marti Dashboard are accessible at `https://tak.DOMAIN/` without any browser certificate installation. `setup_tak.sh` extracts `tak-admin.{crt,key}` to the nginx certs directory automatically using `openssl pkcs12 -legacy` (required for Java 8/11 RC2-40-CBC PKCS12 files on OpenSSL 3.x).
+- **Marti Dashboard access simplified** — The one-time browser certificate import step (previously: download `ca.pem` + `admin-browser.p12`, import into Firefox, then connect directly to port 8443) is no longer required. The dashboard is accessible at `https://tak.DOMAIN/Marti/` — the Authelia gate (lldap_admin group) protects access; nginx handles the admin certificate transparently.
+
+---
+
 ## [0.0.6] – 2026-05-23
 
 ### Fixed

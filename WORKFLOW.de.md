@@ -258,8 +258,8 @@ Löscht in dieser Reihenfolge:
 
 ### Sicherer Übergabeprozess
 
-1. `qr-credentials.png` zeigen (persönlich oder über sicheren Kanal)
-2. Nutzer loggt sich in Nextcloud ein, lädt `.ovpn` herunter
+1. Nextcloud-Ordner des Nutzers öffnen (`KOMMS-Users/<username>/`) und `qr-credentials.png` über einen sicheren Kanal senden — oder persönlich zeigen
+2. Nutzer scannt den QR, loggt sich in Nextcloud ein und lädt `.ovpn` herunter
 3. **Dateien aus `/opt/komms-data/users/<username>/` nach Übergabe löschen**
 
 ### Checkliste pro Gerät
@@ -498,27 +498,23 @@ docker exec komms_tak bash -c \
 
 ### Marti-Dashboard (nur Admin)
 
-Das Marti-Admin-Dashboard (`/Marti/metrics/index.html`) erfordert `ROLE_ADMIN`. LDAP-Nutzer — einschließlich des `admin`-Kontos — erhalten diese Rolle nicht. Sie wird ausschließlich über Zertifikatsauthentifizierung vergeben, die gegen `UserAuthenticationFile.xml` geprüft wird.
+Das Marti-Dashboard ist unter `https://tak.DOMAIN/Marti/` erreichbar — **kein Browser-Zertifikat erforderlich**.
 
-**Einmalige Einrichtung (Admin-Rechner):**
+nginx leitet den gesamten Traffic auf `tak.DOMAIN` (Port 443) an TAKServer-Port 8443 weiter und präsentiert dabei automatisch das Admin-Zertifikat (aus `admin.p12`, extrahiert von `setup_tak.sh`). Jeder Nutzer mit `lldap_admin`-Gruppenmitgliedschaft erhält dadurch `ROLE_ADMIN`.
 
-```bash
-# Zertifikate vom Server herunterladen:
-scp root@DEIN_SERVER:/opt/komms-data/tak/certs/files/ca.pem             ~/Downloads/tak-ca.pem
-scp root@DEIN_SERVER:/opt/komms-data/tak/certs/files/admin-browser.p12  ~/Downloads/admin-browser.p12
-```
+**Zugang:**
 
-Beide in Firefox importieren:
-- **Einstellungen → Datenschutz & Sicherheit → Zertifikate anzeigen**
-  - Tab **Zertifizierungsstellen** → Importieren `tak-ca.pem` → Häkchen bei *„Diese CA kann Websites identifizieren"*
-  - Tab **Ihre Zertifikate** → Importieren `admin-browser.p12` → Passwort: `atakatak` (oder dein `TAK_CERT_PASS`)
+1. VPN verbinden
+2. `https://tak.DOMAIN/` oder `https://tak.DOMAIN/Marti/` aufrufen
+3. Über Authelia anmelden (lldap_admin-Gruppe erforderlich)
 
-Dann `https://tak.DEINE_DOMAIN:8443/Marti/metrics/index.html` aufrufen.  
-Firefox fragt welches Zertifikat präsentiert werden soll → **admin** auswählen → Marti-Dashboard öffnet sich.
-
-> **Port 8443 vs. tak.DOMAIN:**  
-> `tak.DOMAIN` (Port 443, über nginx) leitet an TAKServer-Port 8446 weiter — für normale WebTAK-Nutzer mit LDAP-Login.  
-> Port 8443 ist direkt über Docker erreichbar und nutzt `clientAuth=WANT` — optionale Client-Zertifikate sind möglich, normale LDAP-Nutzer werden nicht beeinträchtigt.
+> **Direktzugriff auf Port 8443 (Fehlersuche / ATAK TCP):**  
+> Port 8443 ist direkt über Docker erreichbar (`clientAuth=WANT`). Bei Bedarf `ca.pem` und `admin-browser.p12` in Firefox importieren für direkten Zertifikats-Login unter `https://tak.DOMAIN:8443/Marti/`.  
+> Vom Server herunterladen:
+> ```bash
+> scp root@DEIN_SERVER:/opt/komms-data/tak/certs/files/ca.pem            ~/Downloads/tak-ca.pem
+> scp root@DEIN_SERVER:/opt/komms-data/tak/certs/files/admin-browser.p12 ~/Downloads/admin-browser.p12
+> ```
 
 ---
 
