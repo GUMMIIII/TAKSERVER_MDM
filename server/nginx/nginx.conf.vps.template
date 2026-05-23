@@ -391,6 +391,33 @@ http {
         # for this host and block the direct port-8443 access used for Marti Dashboard.
         add_header Strict-Transport-Security "max-age=0" always;
 
+        # Marti admin dashboard — nginx presents the TAK admin client cert to
+        # takserver:8443 so no browser cert install is needed. Only lldap_admin
+        # users reach this block (Authelia gate above).
+        location /Marti/ {
+            auth_request     /authelia;
+            auth_request_set $target_url $scheme://$http_host$request_uri;
+            error_page 401   =302 https://auth.${DOMAIN}/?rd=$target_url;
+
+            resolver             127.0.0.11 valid=5s;
+            set $tak_marti       https://takserver:8443;
+            proxy_pass           $tak_marti;
+            proxy_ssl_verify     off;
+            proxy_ssl_certificate     /etc/nginx/certs/tak-admin.crt;
+            proxy_ssl_certificate_key /etc/nginx/certs/tak-admin.key;
+            proxy_redirect       https://localhost:8443/ https://$host/;
+            proxy_redirect       https://takserver:8443/ https://$host/;
+            proxy_set_header     Host              $host;
+            proxy_set_header     X-Real-IP         $remote_addr;
+            proxy_set_header     X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header     X-Forwarded-Proto $scheme;
+            proxy_http_version   1.1;
+            proxy_set_header     Upgrade           $http_upgrade;
+            proxy_set_header     Connection        "upgrade";
+            proxy_read_timeout   300;
+            client_max_body_size 100m;
+        }
+
         location / {
             auth_request     /authelia;
             auth_request_set $target_url $scheme://$http_host$request_uri;
@@ -399,8 +426,6 @@ http {
             proxy_set_header Remote-User $user;
 
             # Port 8446: clientAuth=NONE + ROLE_NO_CLIENT_CERT + ROLE_WEBTAK.
-            # Port 8443: clientAuth=WANT — requires client cert for ROLE_ADMIN (Marti).
-            # nginx proxies on 8446 so normal LDAP users can log in via /login.
             resolver            127.0.0.11 valid=5s;
             set $tak_backend    https://takserver:8446;
             proxy_pass          $tak_backend;

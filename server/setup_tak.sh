@@ -317,6 +317,20 @@ SETENVEOF
     ok "TAKServer certificates generated"
 fi
 
+# Extract admin client cert so nginx can present it to takserver:8443 (Marti mTLS)
+_NGINX_CERT_DIR="$DATA_DIR/config/nginx/certs"
+mkdir -p "$_NGINX_CERT_DIR"
+if [[ -f "$TAK_DIR/certs/files/admin.p12" ]]; then
+    openssl pkcs12 -in "$TAK_DIR/certs/files/admin.p12" \
+        -passin "pass:${TAK_CERT_PASS}" -clcerts -nokeys \
+        -out "$_NGINX_CERT_DIR/tak-admin.crt" 2>/dev/null
+    openssl pkcs12 -in "$TAK_DIR/certs/files/admin.p12" \
+        -passin "pass:${TAK_CERT_PASS}" -nocerts -nodes \
+        -out "$_NGINX_CERT_DIR/tak-admin.key" 2>/dev/null
+    chmod 600 "$_NGINX_CERT_DIR/tak-admin.key"
+    ok "Admin cert extracted → $_NGINX_CERT_DIR/tak-admin.{crt,key}"
+fi
+
 # Enable PostGIS in the tak database (required by TAKServer, CASCADE handles deps)
 info "Enabling PostGIS extension in tak database..."
 docker compose exec -T postgres psql -U "$DB_USER" -d tak \
