@@ -268,7 +268,7 @@ else
         ./makeCert.sh client admin 2>&1
         echo 'Certificates generated successfully.'
     " || err "Certificate generation failed — check: docker compose logs takserver"
-    # Extract WebTAK if takserver.war was not yet present during step 2c
+    # Extract WebTAK if takserver.war was not yet present during step 2d
     if [[ ! -d "$TAK_DIR/webcontent/webtak" && -f "$TAK_DIR/takserver.war" ]]; then
         info "Extracting WebTAK static files (deferred — WAR was not available in step 2)..."
         mkdir -p "$TAK_DIR/webcontent"
@@ -276,7 +276,7 @@ else
         rm -rf "$TAK_DIR/webcontent/WEB-INF" "$TAK_DIR/webcontent/META-INF"
         ok "WebTAK static files extracted → $TAK_DIR/webcontent/"
     fi
-    # Patch setenv.sh if not done in step 2d
+    # Patch setenv.sh if not done in step 2e
     if [[ -f "$SETENV_FILE" ]] && ! grep -q "spring.web.resources.static-locations" "$SETENV_FILE"; then
         cat >> "$SETENV_FILE" << 'SETENVEOF'
 

@@ -20,6 +20,25 @@
 worker_processes auto;
 events { worker_connections 1024; }
 
+# ── Mumble TCP + UDP stream proxy ────────────────────────────────────────────
+# Raw TCP/UDP passthrough — Mumble uses its own TLS cert (see murmur.ini).
+# VPN clients: dnsmasq resolves mumble.DOMAIN → VPN GW → nginx → mumble container.
+# External clients: DNS A record mumble.DOMAIN → server IP → nginx → mumble.
+stream {
+    resolver 127.0.0.11 valid=5s;
+    server {
+        listen 64738;
+        proxy_pass        mumble:64738;
+        proxy_connect_timeout 5s;
+        proxy_timeout     3600s;
+    }
+    server {
+        listen 64738 udp;
+        proxy_pass        mumble:64738;
+        proxy_timeout     60s;
+    }
+}
+
 http {
     # VPN subnet check — used for all VPN-restricted services.
     # geo sets $vpn_ip=1 for allowed IPs, 0 for everyone else.

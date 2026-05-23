@@ -323,6 +323,40 @@ MANIFEST
     fi
 fi
 
+# ── Credentials file (created early so it can be uploaded to Nextcloud) ──────
+cat > "$USER_DIR/credentials.txt" << CREDS
+KOMMS User Package – ${USERNAME}
+Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+════════════════════════════════════════════
+
+Login (Nextcloud + Authelia SSO)
+  Username: ${USERNAME}
+  Password: ${USER_PASS}
+  URL:      ${NC_URL}
+
+Onboarding Flow
+  1. Open ${NC_URL} in browser
+  2. Login with above credentials
+  3. Find shared folder: KOMMS-Users/${USERNAME}/
+  4. Download ${USERNAME}.ovpn → import in OpenVPN app
+  5. Connect VPN → access all other services
+
+Service URLs (VPN required)
+  Matrix:    @${USERNAME}:${MATRIX_DOMAIN:-$DOMAIN}
+  Element:   https://element.${DOMAIN}
+  Mumble:    mumble.${DOMAIN}:64738
+  TAKServer: tak.${DOMAIN}:8089 (TLS)
+  MDM:       https://mdm.${DOMAIN}
+
+Files in Nextcloud (KOMMS-Users/${USERNAME}/)
+  ${USERNAME}.ovpn        → OpenVPN profile
+$( [[ "$TAK_ZIP_DONE"  == "true" ]] && echo "  ${USERNAME}-tak.zip     → ATAK/WinTAK data package (passphrase: ${TAK_CERT_PASS})" )
+$( [[ "$TAK_CERT_DONE" == "false" ]] && echo "  [TAK cert pending – run add_user.sh after TAKServer setup]" )
+
+SECURITY: Delete this file after distribution.
+CREDS
+chmod 600 "$USER_DIR/credentials.txt"
+
 # ── [4] Upload files to Nextcloud ────────────────────────────────────────────
 step "[4/6] Uploading files to Nextcloud"
 info "Files will be shared with the user — accessible after first login to ${NC_URL}"
@@ -366,7 +400,8 @@ if docker exec komms_nextcloud curl -sf --max-time 5 http://localhost/status.php
         "${_NC_DAV_INT}/${_NC_FOLDER}" -o /dev/null || true
 
     _upload_ok=true
-    _nc_upload "$OVPN_OUT"  "${USERNAME}.ovpn"   || { warn "Upload failed: ${USERNAME}.ovpn";   _upload_ok=false; }
+    _nc_upload "$OVPN_OUT"              "${USERNAME}.ovpn"      || { warn "Upload failed: ${USERNAME}.ovpn";      _upload_ok=false; }
+    _nc_upload "$USER_DIR/credentials.txt" "credentials.txt"   || { warn "Upload failed: credentials.txt";       _upload_ok=false; }
     [[ "$TAK_ZIP_DONE"  == "true" ]] && \
         { _nc_upload "$TAK_ZIP_OUT" "${USERNAME}-tak.zip" || { warn "Upload failed: ${USERNAME}-tak.zip"; _upload_ok=false; }; }
     [[ "$TAK_CERT_DONE" == "true" ]] && \
@@ -418,43 +453,9 @@ ${NC_URL}
 qrencode -o "$USER_DIR/qr-credentials.png" -s 8 -m 2 -l M "$QR_TEXT"
 ok "Credentials QR: qr-credentials.png"
 
-# ── [6] Write credentials file ────────────────────────────────────────────────
+# ── [6] Credentials summary ───────────────────────────────────────────────────
 step "[6/6] Saving credentials"
-
-cat > "$USER_DIR/credentials.txt" << CREDS
-KOMMS User Package – ${USERNAME}
-Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-════════════════════════════════════════════
-
-Login (Nextcloud + Authelia SSO)
-  Username: ${USERNAME}
-  Password: ${USER_PASS}
-  URL:      ${NC_URL}
-
-Onboarding Flow
-  1. Open ${NC_URL} in browser
-  2. Login with above credentials
-  3. Find shared folder: KOMMS-Users/${USERNAME}/
-  4. Download ${USERNAME}.ovpn → import in OpenVPN app
-  5. Connect VPN → access all other services
-
-Service URLs (VPN required)
-  Matrix:    @${USERNAME}:${MATRIX_DOMAIN:-$DOMAIN}
-  Element:   https://element.${DOMAIN}
-  Mumble:    mumble.${DOMAIN}:64738
-  TAKServer: tak.${DOMAIN}:8089 (TLS)
-  MDM:       https://mdm.${DOMAIN}
-
-Files in Nextcloud (KOMMS-Users/${USERNAME}/)
-  ${USERNAME}.ovpn        → OpenVPN profile
-$( [[ "$TAK_ZIP_DONE"  == "true" ]] && echo "  ${USERNAME}-tak.zip     → ATAK/WinTAK data package (passphrase: ${TAK_CERT_PASS})" )
-$( [[ "$TAK_CERT_DONE" == "false" ]] && echo "  [TAK cert pending – run add_user.sh after TAKServer setup]" )
-
-SECURITY: Delete this file after distribution.
-CREDS
-
-chmod 600 "$USER_DIR/credentials.txt"
-ok "credentials.txt saved"
+ok "credentials.txt saved (also uploaded to Nextcloud: KOMMS-Users/${USERNAME}/)"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
