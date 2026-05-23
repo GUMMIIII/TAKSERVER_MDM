@@ -407,7 +407,9 @@ http {
             proxy_ssl_certificate_key /etc/nginx/certs/tak-admin.key;
             proxy_redirect       https://localhost:8443/ https://$host/;
             proxy_redirect       https://takserver:8443/ https://$host/;
+            proxy_redirect       ~^https://[^/]+:8443(.*)$ https://$host$1;
             proxy_set_header     Cookie            "";
+            proxy_hide_header    Set-Cookie;
             proxy_set_header     Host              $host;
             proxy_set_header     X-Real-IP         $remote_addr;
             proxy_set_header     X-Forwarded-For   $proxy_add_x_forwarded_for;
