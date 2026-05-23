@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.8] – 2026-05-23
+
+### Fixed
+
+- **Mumble unreachable via domain for VPN clients** — `dnsmasq/entrypoint.sh` was missing DNAT rules for port 64738 (TCP + UDP). VPN clients resolve `mumble.DOMAIN` via dnsmasq to the VPN gateway, but without a DNAT rule the traffic never reached the nginx stream proxy. Direct IP access worked because it bypassed the VPN tunnel entirely. Fixed by adding `add_dnat tcp/udp 64738 → nginx:64738` to the dnsmasq entrypoint.
+- **nginx fails to start on fresh install before `setup_tak.sh` runs** — `nginx.conf` references `proxy_ssl_certificate /etc/nginx/certs/tak-admin.crt`, which only exists after `setup_tak.sh` extracts it from `admin.p12`. On a fresh install nginx would refuse to start. Fixed by having `setup_server.sh` write placeholder `tak-admin.{crt,key}` (copy of the main TLS cert) so nginx can start immediately. `setup_tak.sh` overwrites them with the real admin cert and reloads nginx.
+
+---
+
 ## [0.0.7] – 2026-05-23
 
 ### Added
