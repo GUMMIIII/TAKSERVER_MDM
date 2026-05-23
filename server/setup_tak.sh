@@ -412,6 +412,16 @@ def fix_8443_client_auth(m):
     return s
 txt = re.sub(r'<connector port="8443"[^>]*/>', fix_8443_client_auth, txt)
 
+# 3b. Ensure clientAuth="NONE" on port 8446 (WebTAK no-cert port).
+def fix_8446_client_auth(m):
+    s = m.group(0)
+    if 'clientAuth=' not in s:
+        s = s.replace('<connector port="8446"', '<connector port="8446" clientAuth="NONE"', 1)
+    else:
+        s = re.sub(r'clientAuth="[^"]*"', 'clientAuth="NONE"', s)
+    return s
+txt = re.sub(r'<connector port="8446"[^>]*/>', fix_8446_client_auth, txt)
+
 # 4. Set DB connection URL in <repository><connection>.
 #    TAK 5.7 reads the JDBC URL from this element (XSD default is 127.0.0.1:5432/cot).
 #    Patch both empty <connection/> and any existing <connection url="..."/> forms.
