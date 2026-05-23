@@ -321,12 +321,15 @@ fi
 _NGINX_CERT_DIR="$DATA_DIR/config/nginx/certs"
 mkdir -p "$_NGINX_CERT_DIR"
 if [[ -f "$TAK_DIR/certs/files/admin.p12" ]]; then
+    _TMP_ADM=$(mktemp)
+    # -legacy required for RC2-40-CBC (Java 8/11 PKCS12); harmless on newer Java
+    openssl pkcs12 -legacy -in "$TAK_DIR/certs/files/admin.p12" \
+        -passin "pass:${TAK_CERT_PASS}" -nodes -out "$_TMP_ADM" 2>/dev/null || \
     openssl pkcs12 -in "$TAK_DIR/certs/files/admin.p12" \
-        -passin "pass:${TAK_CERT_PASS}" -clcerts -nokeys \
-        -out "$_NGINX_CERT_DIR/tak-admin.crt" 2>/dev/null
-    openssl pkcs12 -in "$TAK_DIR/certs/files/admin.p12" \
-        -passin "pass:${TAK_CERT_PASS}" -nocerts -nodes \
-        -out "$_NGINX_CERT_DIR/tak-admin.key" 2>/dev/null
+        -passin "pass:${TAK_CERT_PASS}" -nodes -out "$_TMP_ADM" 2>/dev/null
+    openssl x509 -in "$_TMP_ADM" -out "$_NGINX_CERT_DIR/tak-admin.crt" 2>/dev/null
+    openssl pkey -in "$_TMP_ADM" -out "$_NGINX_CERT_DIR/tak-admin.key" 2>/dev/null
+    rm -f "$_TMP_ADM"
     chmod 600 "$_NGINX_CERT_DIR/tak-admin.key"
     ok "Admin cert extracted → $_NGINX_CERT_DIR/tak-admin.{crt,key}"
 fi
