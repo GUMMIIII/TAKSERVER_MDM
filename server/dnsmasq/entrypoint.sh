@@ -22,9 +22,11 @@ iptables-legacy -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth1 -j MASQUERADE
 # ── nginx (port 443 / 80) ────────────────────────────────────────────────────
 NGINX_IP=$(nslookup nginx 127.0.0.11 2>/dev/null | grep '^Address:' | grep -v '127\.0\.0\.11' | awk '{print $2}')
 if [ -n "$NGINX_IP" ]; then
-    add_dnat tcp 443 "$NGINX_IP" 443
-    add_dnat tcp 80  "$NGINX_IP" 80
-    echo "dnsmasq: DNAT nginx → $NGINX_IP:443/80"
+    add_dnat tcp 443   "$NGINX_IP" 443
+    add_dnat tcp 80    "$NGINX_IP" 80
+    add_dnat tcp 64738 "$NGINX_IP" 64738
+    add_dnat udp 64738 "$NGINX_IP" 64738
+    echo "dnsmasq: DNAT nginx → $NGINX_IP:443/80/64738"
 else
     echo "dnsmasq: WARNING: could not resolve nginx — DNAT not set"
 fi
