@@ -16,6 +16,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.16] – 2026-05-24
+
+### Added
+
+- **`setup_tak.sh` auto-creates `webcontent/update/`** — fresh installs now have the OTA drop folder ready out of the box, with a `README.txt` inside that explains what to drop there and the matching ATAK update URL. No manual `mkdir` needed before the first `product.infz` upload. Pairs with the v0.0.15 nginx bypass to make ATAK OTA work end-to-end on a fresh install with zero manual steps on the TAKSERVER_MDM side.
+
+### Documented
+
+- Companion repo [takserver_ota](https://github.com/GUMMIIII/takserver_ota) v0.1.1 now ships a dedicated "Variante B / Option B" section in its EN_README / DEU_README that points operators of TAKSERVER_MDM at the `/opt/komms-data/tak/webcontent/update/` host path and the `https://tak.DOMAIN/update/` ATAK URL — so the cross-repo workflow is now documented from both sides.
+
+---
+
 ## [0.0.15] – 2026-05-24
 
 ### Added

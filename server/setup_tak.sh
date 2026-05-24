@@ -101,7 +101,36 @@ if [[ ! -f "$TAK_DIR/takserver.war" ]]; then
 else
     ok "TAK application files already at $TAK_DIR"
 fi
-mkdir -p "$TAK_DIR/logs" "$TAK_DIR/certs/files"
+mkdir -p "$TAK_DIR/logs" "$TAK_DIR/certs/files" "$TAK_DIR/webcontent/update"
+
+# Drop a README so operators discover the OTA drop folder without digging.
+# Spring Boot serves /opt/tak/webcontent/ as static content (see setenv.sh),
+# so anything placed in webcontent/update/ is reachable at https://tak.DOMAIN/update/.
+# nginx bypasses Authelia for that path so ATAK clients can pull the manifest.
+if [[ ! -f "$TAK_DIR/webcontent/update/README.txt" ]]; then
+    cat > "$TAK_DIR/webcontent/update/README.txt" << 'OTAREADME'
+TAKSERVER_MDM — ATAK OTA Update Drop Folder
+═══════════════════════════════════════════
+
+Place ATAK update artefacts here:
+
+    product.inf      — CSV manifest (one row per plugin)
+    product.infz     — ZIP archive: product.inf + all icons
+    *.apk            — plugin APKs themselves
+    *.png            — plugin icons (referenced by product.inf)
+
+Generate them with the companion tool: https://github.com/GUMMIIII/takserver_ota
+
+URL ATAK clients pull from (configure once in ATAK settings):
+
+    https://tak.<your-domain>/update
+
+nginx bypasses Authelia for this path; the manifest + APKs are public
+artefacts. CoT access control still happens at the 8089 TLS input via
+per-user client certificates issued by add_user.sh.
+OTAREADME
+    ok "OTA drop folder ready → $TAK_DIR/webcontent/update/ (with README)"
+fi
 
 # ── [2c] Extract WebTAK static files from the TAKServer WAR ──────────────────
 # Spring Boot PropertiesLauncher does not add WAR-root content (webtak/, Marti/,
