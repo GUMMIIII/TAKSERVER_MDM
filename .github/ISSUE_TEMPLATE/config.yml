@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/GUMMIIII/TAKSERVER_MDM/security/advisories/new
+    about: Please report security issues privately via GitHub Security Advisory — do not open a public issue.
+  - name: Test environment access
+    url: https://github.com/GUMMIIII/TAKSERVER_MDM/issues/new
+    about: Want to poke at a live test deployment before installing? Open a regular issue and I'll arrange read-only access.

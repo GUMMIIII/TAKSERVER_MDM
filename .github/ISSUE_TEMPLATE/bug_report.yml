@@ -1,0 +1,87 @@
+name: Bug report
+description: Something is not working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Please fill in as much detail
+        as you can — it helps me reproduce and fix it faster.
+
+        For security issues, do not use this form. See
+        [SECURITY.md](https://github.com/GUMMIIII/TAKSERVER_MDM/blob/main/SECURITY.md).
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Run `git -C /opt/komms describe --tags --always` on the server, or check `docker compose ps` for image tags.
+      placeholder: "e.g. v0.0.12 or commit hash"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      multiple: true
+      options:
+        - install.sh / first-time install
+        - setup_server.sh
+        - setup_tak.sh / TAKServer
+        - add_user.sh / user provisioning
+        - update.sh
+        - nginx / reverse proxy
+        - Authelia / SSO
+        - Nextcloud / Collabora
+        - Matrix / Synapse / Element
+        - Headwind MDM
+        - OpenVPN
+        - Mumble
+        - dnsmasq / split-horizon DNS
+        - Documentation (README / WORKFLOW)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Ran `sudo bash install.sh` on fresh Ubuntu 24.04
+        2. Entered values for...
+        3. Got error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Output of `docker compose logs <service>` or `journalctl -u docker`. Redact secrets.
+      render: shell
+
+  - type: input
+    id: os
+    attributes:
+      label: OS / Architecture
+      placeholder: "e.g. Ubuntu 24.04 x86_64, Debian 12 ARM64"
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment context
+      options:
+        - VPS / public domain (production)
+        - VPS / public domain (testing)
+        - Local docker-desktop
+        - Other

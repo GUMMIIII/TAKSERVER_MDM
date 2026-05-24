@@ -16,6 +16,8 @@ If you run into problems or have ideas, please open an [issue](https://github.co
 
 I'll try to respond within a few days. Bigger changes (new services, refactors) might take longer depending on how much free-time work they need, but they're not off the table.
 
+**Want to try before you install?** If you'd like to poke at a running test deployment before standing one up yourself, open an issue and I can arrange read-only access to a live test environment.
+
 ---
 
 ## What's Included
