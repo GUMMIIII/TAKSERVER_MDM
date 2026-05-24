@@ -16,6 +16,41 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.14] – 2026-05-24
+
+### Added
+
+- **README badges** — license (AGPL v3), latest release, last commit, open issues, GitHub stars. Quick-glance project health at the top of the README.
+
+### Notes
+
+This release coincides with the repository going public. Repo hardening applied alongside:
+
+- Secret Scanning + Push Protection enabled (blocks accidental token commits before they leave the developer machine)
+- Dependabot alerts + automated security fixes enabled
+- Issues + Discussions enabled, squash-merge as the only merge style, auto-delete of merged branches
+
+No code changes — documentation + repo settings only.
+
+---
+
+## [0.0.13] – 2026-05-24
+
+### Added
+
+- **`SECURITY.md`** — private vulnerability reporting policy. Points reporters to the GitHub Security Advisory form rather than public issues; documents scope and out-of-scope items, expected response time, and credit.
+- **Issue templates** under `.github/ISSUE_TEMPLATE/`:
+  - Structured bug report form (affected component dropdown, repro steps, logs block, OS/architecture)
+  - Feature request form (problem, proposal, scope estimate, contribution willingness)
+  - Issue template config exposing quick-links to the Security Advisory form and to "test environment access" requests
+- **README maintainer note: test-deployment offer** — read-only access to a running test environment available on request, so prospective operators can poke at the platform before installing.
+
+### Notes
+
+Documentation + repo hygiene only — no functional changes.
+
+---
+
 ## [0.0.12] – 2026-05-24
 
 ### Changed
