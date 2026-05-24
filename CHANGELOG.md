@@ -16,6 +16,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.10] – 2026-05-24
+
+### Fixed
+
+- **Collabora editor opened empty (no toolbar / no editing)** — `richdocuments` created the `.docx` but the Collabora iframe could not load template presets or userconfig settings. Root cause: Collabora's server-side preset fetch calls `https://cloud.DOMAIN/apps/richdocuments/settings/userconfig/...` (without the `/index.php/` prefix), which fell into nginx's default `location /` block and hit the Authelia gate → HTTP 302 → all 12 template fetches failed → `DocumentBroker: Failed to load all settings`, Kit process killed. Existing bypass only matched `/index.php/apps/richdocuments/wopi/`. Widened the regex to `^/(index\.php/)?apps/richdocuments/` so both URL forms bypass Authelia (Nextcloud still validates the access token internally). Verified live on concealed.icu.
+
+---
+
 ## [0.0.9] – 2026-05-24
 
 ### Removed
