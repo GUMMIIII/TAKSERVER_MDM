@@ -62,11 +62,15 @@ else
     ufw allow 443/tcp   comment "HTTPS (all web services via nginx)"
     ufw allow "${VPN_PORT:-1194}/udp" comment "OpenVPN"
     ufw allow 8089/tcp  comment "ATAK/WinTAK TLS"
+    ufw allow 8443/tcp  comment "TAKServer OTA direct (ATAK uses KOMMSca cert, not Let's Encrypt)"
     ufw allow 8444/tcp  comment "TAKServer cert enrollment"
     ufw allow 64738/tcp comment "Mumble TCP"
     ufw allow 64738/udp comment "Mumble UDP"
-    # Port 8443 (TAKServer) is NOT exposed externally — nginx proxies tak.DOMAIN
-    # through 443 with the admin cert. Direct 8443 access was removed in v0.0.7.
+    # Port 8443 is exposed for ATAK OTA: ATAK's internal trust-store only
+    # contains KOMMSca (the TAKServer self-signed CA, present in user.p12 /
+    # truststore-tak.p12). nginx on 443 serves a Let's Encrypt cert that ATAK
+    # does not trust, so the update channel must go directly to TAKServer:8443.
+    # WebTAK + Marti for browsers still go through nginx on 443.
     ufw allow from "${VPN_SUBNET:-10.8.0.0}/24" to any port 53 proto udp comment "DNS for VPN clients (dnsmasq)"
     ufw --force enable
     ok "Firewall configured"
@@ -439,6 +443,24 @@ docker compose exec -T -u www-data nextcloud php occ \
 docker compose exec -T -u www-data nextcloud php occ \
     config:app:set user_oidc allow_multiple_user_backends --value=0 >/dev/null 2>&1 || true
 ok "Nextcloud OIDC: Authelia provider configured (auto-redirect enabled)"
+
+# MIME-type mapping for KOMMS-issued files. Without this Nextcloud serves
+# .ovpn and .p12 as text/plain, which causes Android to append ".txt" to the
+# filename on download (e.g. admin.ovpn.txt) and breaks the auto-import flow
+# in the OpenVPN / ATAK apps that look for the exact extension.
+_NC_MIME_FILE=$(mktemp)
+cat > "$_NC_MIME_FILE" <<'NCMIME'
+{
+  "ovpn": ["application/x-openvpn-profile"],
+  "p12":  ["application/x-pkcs12"]
+}
+NCMIME
+docker cp "$_NC_MIME_FILE" komms_nextcloud:/var/www/html/config/mimetypemapping.json >/dev/null 2>&1 || true
+docker compose exec -T nextcloud chown www-data:www-data /var/www/html/config/mimetypemapping.json >/dev/null 2>&1 || true
+rm -f "$_NC_MIME_FILE"
+docker compose exec -T -u www-data nextcloud php occ maintenance:mimetype:update-db --repair-filecache >/dev/null 2>&1 || true
+docker compose exec -T -u www-data nextcloud php occ maintenance:mimetype:update-js >/dev/null 2>&1 || true
+ok "Nextcloud MIME types: .ovpn → application/x-openvpn-profile, .p12 → application/x-pkcs12"
 
 # Switch Nextcloud background jobs from AJAX (runs on user requests) to cron.
 # AJAX mode causes post-login lag; cron mode offloads jobs to a system timer.

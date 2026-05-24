@@ -128,8 +128,6 @@ If you want your ATAK clients to receive over-the-air APK + plugin updates from 
 
 It sets up a self-hosted OTA channel served from this same TAKServer instance — ATAK clients check in, pull the latest APK and plugin set, and stay up to date without anyone touching a device manually. Useful for keeping a fleet of field devices in sync after a TAK version bump or plugin change.
 
-Integrates with the deployment described here: nginx serves the update manifests behind the same TLS cert, no separate domain or firewall hole needed. The `/update/` path on `tak.${DOMAIN}` is **Authelia-bypassed** by design (ATAK has no cookie session), so the OTA manifest + APKs are publicly fetchable — the manifest is by design a public artifact, and access control on actual CoT data still happens at the 8089 TLS input via per-user client certificates.
-
 **Where to drop the generated files:**
 ```
 /opt/komms-data/tak/webcontent/update/
@@ -138,7 +136,16 @@ Integrates with the deployment described here: nginx serves the update manifests
   ├── *.apk
   └── *.png
 ```
-This bind-mounts to `/opt/tak/webcontent/update/` inside the container. ATAK clients fetch from `https://tak.${DOMAIN}/update/product.infz`.
+This bind-mounts to `/opt/tak/webcontent/update/` inside the container.
+
+**ATAK Update-Server URL to configure on each client:**
+```
+https://tak.<your-domain>:8443/update
+```
+
+⚠️ **Important — use port `:8443`, not `:443`.** ATAK 5.x has its own internal trust-store that only contains the `KOMMSca` CA (the TAKServer self-signed CA, also present in `user.p12` / `truststore-tak.p12`). The nginx reverse proxy on port `443` serves a Let's Encrypt certificate that ATAK does **not** trust — connections to `https://tak.<domain>/update` will fail with "socket is closed" during the TLS handshake. Port `8443` connects directly to TAKServer with its KOMMSca-signed cert, which ATAK trusts out of the box.
+
+For convenience, the `/update/` path is also reachable through nginx on `https://tak.<domain>/update` (Authelia-bypassed, useful for `curl` / browser verification), but ATAK itself must use the `:8443` URL.
 
 ---
 

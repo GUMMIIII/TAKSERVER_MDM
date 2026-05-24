@@ -16,6 +16,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.19] – 2026-05-24
+
+### Fixed
+
+- **UFW: Port `8443/tcp` is exposed again** (was closed in v0.0.9). ATAK clients have their own internal trust-store containing only the TAKServer-internal `KOMMSca` CA (via `user.p12` / `truststore-tak.p12`), so the nginx Let's Encrypt cert on `443` is rejected by ATAK during the TLS handshake (manifested as "socket is closed" client-side, with `0` HTTP requests visible in nginx logs). ATAK OTA must talk directly to TAKServer's KOMMSca-signed cert on port `8443`. The `/update/` Authelia bypass on nginx:443 stays in place for `curl`/browser verification, but ATAK itself must use `https://tak.DOMAIN:8443/update` for the Update Server setting.
+- **Nextcloud MIME mapping for `.ovpn` + `.p12`** — Nextcloud was serving these files as `text/plain` (because no MIME mapping for `.ovpn` is registered by default and the dist mapping falls back to `text/plain`). Result: when an Android phone downloaded the `.ovpn` from Nextcloud, the OS appended `.txt` to the filename (`admin.ovpn.txt`), breaking the auto-import flow in the OpenVPN app. `setup_server.sh` now writes `/var/www/html/config/mimetypemapping.json` with explicit mappings: `.ovpn → application/x-openvpn-profile`, `.p12 → application/x-pkcs12`. Verified live: `Content-Type: application/x-openvpn-profile` is now sent on download.
+
+### Documented
+
+- **README: ATAK OTA URL clarified** — explicit warning to use `https://tak.DOMAIN:8443/update` (port 8443), not the nginx `:443` path, because of the trust-store mismatch above. The previously-documented nginx-proxied URL works for `curl`/browser tests but not for ATAK itself.
+
+### Notes on fresh-install parity
+
+After this release a fresh `install.sh` run produces a deployment that matches the current state on the live test server, end-to-end:
+- nginx with `/update/` Authelia bypass (v0.0.15) **and** UFW 8443 open for ATAK direct (v0.0.19)
+- `webcontent/update/` drop folder auto-created with operator README (v0.0.16)
+- OpenVPN `duplicate-cn` + `mssfix 1400` + `tun-mtu 1500` for stable multi-device + mobile (v0.0.17)
+- postgres healthcheck no longer floods FATAL log (v0.0.18)
+- Nextcloud MIME types so `.ovpn` and `.p12` downloads keep their extensions on Android (v0.0.19)
+
+---
+
 ## [0.0.18] – 2026-05-24
 
 ### Fixed
