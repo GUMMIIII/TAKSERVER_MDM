@@ -396,7 +396,33 @@ http {
         # block users who need to reach it directly during troubleshooting.
         add_header Strict-Transport-Security "max-age=0" always;
 
-        # All TAK paths — nginx presents the admin client cert to takserver:8443.
+        # ATAK OTA endpoint — bypass Authelia.
+        # ATAK clients fetch /update/product.infz and APKs without any browser
+        # session, so we cannot put them behind the SSO gate. The manifest +
+        # APKs themselves are public artifacts (nothing sensitive in there);
+        # access control on actual CoT data still happens at the 8089 TLS
+        # input via per-user client certs. nginx still presents the admin
+        # cert to the 8443 connector (clientAuth=WANT) so TAKServer doesn't
+        # reject the request — the bypass is only on the Authelia layer.
+        # Drop OTA files at: /opt/komms-data/tak/webcontent/update/  (host)
+        # which is bind-mounted to /opt/tak/webcontent/update/ in the container.
+        location /update/ {
+            resolver             127.0.0.11 valid=5s;
+            set $tak_backend     https://takserver:8443;
+            proxy_pass           $tak_backend;
+            proxy_ssl_verify     off;
+            proxy_ssl_certificate     /etc/nginx/certs/tak-admin.crt;
+            proxy_ssl_certificate_key /etc/nginx/certs/tak-admin.key;
+            proxy_set_header     Host              $host;
+            proxy_set_header     X-Real-IP         $remote_addr;
+            proxy_set_header     X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header     X-Forwarded-Proto $scheme;
+            proxy_read_timeout   300;
+            # APKs can be 50–200 MB; raise the limit for /update/ specifically.
+            client_max_body_size 500m;
+        }
+
+        # All other TAK paths — nginx presents the admin client cert to takserver:8443.
         # clientAuth=WANT on 8443: cert is optional at TLS level but nginx always
         # sends it, granting ROLE_ADMIN. WebTAK and Marti share one session.
         # Only lldap_admin users pass the Authelia gate above.

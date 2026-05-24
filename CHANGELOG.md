@@ -16,6 +16,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.15] – 2026-05-24
+
+### Added
+
+- **nginx bypass for `/update/`** — ATAK clients fetching OTA APK + plugin manifests have no Authelia cookie session, so the default `location /` Authelia gate redirected them to the login page (HTTP 302). Added a dedicated `location /update/` block on `tak.${DOMAIN}` that bypasses the gate, still presents the admin client cert to TAKServer:8443 (so `clientAuth=WANT` does not reject), and raises `client_max_body_size` to 500 MB so APK uploads don't truncate. The manifest + APKs are by design public artifacts; actual CoT access control still happens at the 8089 TLS input via per-user x509 certs.
+- **README: OTA file drop path** — documented that generated `product.inf`/`product.infz`/APKs go to `/opt/komms-data/tak/webcontent/update/` on the host (bind-mount to `/opt/tak/webcontent/update/` in the container), reachable for ATAK at `https://tak.${DOMAIN}/update/product.infz`. Pairs with the [takserver_ota](https://github.com/GUMMIIII/takserver_ota) companion.
+
+### Verified
+
+Behavior empirically confirmed on a live deployment: before the fix, `curl https://tak.DOMAIN/update/...` returned `302` (Authelia redirect) while `docker exec komms_tak curl https://localhost:8443/update/...` returned `200`. After the fix, both paths return `200`.
+
+---
+
 ## [0.0.14] – 2026-05-24
 
 ### Added

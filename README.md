@@ -128,7 +128,17 @@ If you want your ATAK clients to receive over-the-air APK + plugin updates from 
 
 It sets up a self-hosted OTA channel served from this same TAKServer instance — ATAK clients check in, pull the latest APK and plugin set, and stay up to date without anyone touching a device manually. Useful for keeping a fleet of field devices in sync after a TAK version bump or plugin change.
 
-Integrates with the deployment described here: nginx serves the update manifests behind the same TLS cert + Authelia gate, no separate domain or firewall hole needed.
+Integrates with the deployment described here: nginx serves the update manifests behind the same TLS cert, no separate domain or firewall hole needed. The `/update/` path on `tak.${DOMAIN}` is **Authelia-bypassed** by design (ATAK has no cookie session), so the OTA manifest + APKs are publicly fetchable — the manifest is by design a public artifact, and access control on actual CoT data still happens at the 8089 TLS input via per-user client certificates.
+
+**Where to drop the generated files:**
+```
+/opt/komms-data/tak/webcontent/update/
+  ├── product.inf
+  ├── product.infz
+  ├── *.apk
+  └── *.png
+```
+This bind-mounts to `/opt/tak/webcontent/update/` inside the container. ATAK clients fetch from `https://tak.${DOMAIN}/update/product.infz`.
 
 ---
 
