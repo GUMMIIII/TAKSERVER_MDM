@@ -311,6 +311,22 @@ docker compose run --rm openvpn bash -c \
         "username-as-common-name" >> /etc/openvpn/openvpn.conf' >/dev/null 2>&1
 ok "OpenVPN LDAP auth configured"
 
+# Stability + multi-device settings (idempotent):
+#   duplicate-cn   — let the same user cert connect from phone + laptop + tablet
+#                    simultaneously without kicking each other off (without this,
+#                    each new connection terminates the previous one, causing
+#                    "Zeitüberschreitung beim Datenempfang" loops on ATAK/CoT).
+#   mssfix 1400    — clamp TCP MSS through the tunnel; prevents fragmentation
+#                    drops on mobile/WLAN that cause sporadic reconnects.
+#   tun-mtu 1500   — explicit MTU so both sides agree (some Android clients
+#                    announce IV_MTU=1600 which can confuse the data channel).
+docker compose run --rm openvpn bash -c '
+    grep -q "^duplicate-cn"  /etc/openvpn/openvpn.conf || echo "duplicate-cn"  >> /etc/openvpn/openvpn.conf
+    grep -q "^mssfix"        /etc/openvpn/openvpn.conf || echo "mssfix 1400"   >> /etc/openvpn/openvpn.conf
+    grep -q "^tun-mtu"       /etc/openvpn/openvpn.conf || echo "tun-mtu 1500"  >> /etc/openvpn/openvpn.conf
+' >/dev/null 2>&1
+ok "OpenVPN stability tuned (duplicate-cn, mssfix 1400, tun-mtu 1500)"
+
 # Restart OpenVPN so new push directives (DNS) take effect for new connections.
 docker compose restart openvpn >/dev/null 2>&1 || true
 ok "OpenVPN restarted (new push directives active)"

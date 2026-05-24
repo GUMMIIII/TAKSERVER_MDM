@@ -16,6 +16,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.17] – 2026-05-24
+
+### Fixed
+
+- **ATAK CoT stream randomly disconnected with "Zeitüberschreitung beim Datenempfang"** when the same user certificate was connected from multiple devices (phone + laptop + tablet) simultaneously. OpenVPN default behaviour was to terminate the previous session whenever a new client with the same CN connected, causing endless reconnect loops. Fixed by enabling `duplicate-cn` in `openvpn.conf` so the same identity can hold multiple concurrent tunnels (each device gets its own VPN IP from the pool).
+- **Sporadic VPN reconnects on mobile / WLAN clients** caused by oversized packets being fragmented by the carrier or AP. Added `mssfix 1400` (clamps TCP MSS for traffic through the tunnel) and `tun-mtu 1500` (explicit MTU so both sides agree, avoiding the IV_MTU=1600 announcement from some Android clients).
+
+### Notes
+
+ATAK identity is tied to the **TAK x509 client cert** (`<user>-tak.p12`), not the OpenVPN cert — so even with `duplicate-cn` enabled, if you want multiple ATAK devices to appear as distinct users on the situational awareness layer, each device still needs its own TAK cert from `add_user.sh`. The OpenVPN cert is purely transport.
+
+### Upgrade
+
+Live patch:
+```bash
+docker exec komms_openvpn bash -c '
+  grep -q "^duplicate-cn" /etc/openvpn/openvpn.conf || echo "duplicate-cn"  >> /etc/openvpn/openvpn.conf
+  grep -q "^mssfix"       /etc/openvpn/openvpn.conf || echo "mssfix 1400"   >> /etc/openvpn/openvpn.conf
+  grep -q "^tun-mtu"      /etc/openvpn/openvpn.conf || echo "tun-mtu 1500"  >> /etc/openvpn/openvpn.conf
+'
+docker compose -f /opt/komms/server/docker-compose.yml restart openvpn
+```
+
+---
+
 ## [0.0.16] – 2026-05-24
 
 ### Added
