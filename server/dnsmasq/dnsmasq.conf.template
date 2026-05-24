@@ -9,6 +9,14 @@
 listen-address=${VPN_GW}
 port=53
 
+# bind-dynamic: rebind to the listen-address whenever tun0 comes back up.
+# Without this, restarting the openvpn container (which dnsmasq shares the
+# network namespace with) leaves dnsmasq unable to answer queries until it
+# is also restarted — all VPN clients see "connection refused" on :53 and
+# lose DNS resolution entirely. With bind-dynamic, dnsmasq survives openvpn
+# restarts without manual intervention.
+bind-dynamic
+
 # Internal: all *.DOMAIN → VPN server tun0 IP (nginx reachable via VPN)
 address=/.${DOMAIN}/${VPN_GW}
 

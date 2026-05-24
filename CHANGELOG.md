@@ -16,6 +16,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.21] – 2026-05-24
+
+### Fixed
+
+- **All VPN clients lost DNS resolution after every `docker compose restart openvpn`** — dnsmasq shares the `openvpn` container's network namespace (`network_mode: container:komms_openvpn`). When OpenVPN restarts, the `tun0` interface briefly disappears and reappears; dnsmasq had `listen-address=10.8.0.1` without `bind-dynamic`, so once the original socket bound to tun0 was gone, it could not re-bind and all queries got `connection refused`. Result: VPN clients saw "ERR_NAME_NOT_RESOLVED" / "host could not be resolved" until dnsmasq was manually restarted.
+- Added `bind-dynamic` to `dnsmasq.conf.template`. dnsmasq now re-binds automatically whenever tun0 returns, so OpenVPN restarts (e.g. from `setup_server.sh` re-runs or `docker compose restart openvpn`) no longer break DNS for VPN clients.
+
+### Migration
+
+Live patch on an existing deployment:
+```bash
+ssh root@SERVER '
+  grep -q "^bind-dynamic" /opt/komms-data/config/dnsmasq/dnsmasq.conf || \
+    sed -i "/^port=53/a bind-dynamic" /opt/komms-data/config/dnsmasq/dnsmasq.conf
+  docker compose -f /opt/komms/server/docker-compose.yml restart dnsmasq
+'
+```
+
+---
+
 ## [0.0.20] – 2026-05-24
 
 ### Fixed
