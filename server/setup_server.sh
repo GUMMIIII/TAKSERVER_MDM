@@ -316,20 +316,24 @@ docker compose run --rm openvpn bash -c \
 ok "OpenVPN LDAP auth configured"
 
 # Stability + multi-device settings (idempotent):
-#   duplicate-cn   — let the same user cert connect from phone + laptop + tablet
-#                    simultaneously without kicking each other off (without this,
-#                    each new connection terminates the previous one, causing
-#                    "Zeitüberschreitung beim Datenempfang" loops on ATAK/CoT).
-#   mssfix 1400    — clamp TCP MSS through the tunnel; prevents fragmentation
-#                    drops on mobile/WLAN that cause sporadic reconnects.
-#   tun-mtu 1500   — explicit MTU so both sides agree (some Android clients
-#                    announce IV_MTU=1600 which can confuse the data channel).
+#   duplicate-cn — let the same user cert connect from phone + laptop + tablet
+#                  simultaneously without kicking each other off (without this,
+#                  each new connection terminates the previous one, causing
+#                  "Zeitüberschreitung beim Datenempfang" loops on ATAK/CoT).
+#   mssfix 1400  — clamp TCP MSS through the tunnel; prevents fragmentation
+#                  drops on mobile/WLAN that cause sporadic reconnects.
+# Note: tun-mtu is intentionally NOT pinned. v0.0.17 tried `tun-mtu 1500`
+# but that produced `link-mtu inconsistent: local=1542, remote=1541/1544`
+# negotiation warnings with some Android clients and broke routing through
+# the tunnel entirely on certain phone/WLAN combinations. Letting OpenVPN
+# auto-negotiate the MTU is more robust; mssfix alone is enough to prevent
+# the TCP-fragmentation issue that motivated the original change.
 docker compose run --rm openvpn bash -c '
     grep -q "^duplicate-cn"  /etc/openvpn/openvpn.conf || echo "duplicate-cn"  >> /etc/openvpn/openvpn.conf
     grep -q "^mssfix"        /etc/openvpn/openvpn.conf || echo "mssfix 1400"   >> /etc/openvpn/openvpn.conf
-    grep -q "^tun-mtu"       /etc/openvpn/openvpn.conf || echo "tun-mtu 1500"  >> /etc/openvpn/openvpn.conf
+    sed -i "/^tun-mtu /d" /etc/openvpn/openvpn.conf
 ' >/dev/null 2>&1
-ok "OpenVPN stability tuned (duplicate-cn, mssfix 1400, tun-mtu 1500)"
+ok "OpenVPN stability tuned (duplicate-cn, mssfix 1400; tun-mtu auto-negotiated)"
 
 # Restart OpenVPN so new push directives (DNS) take effect for new connections.
 docker compose restart openvpn >/dev/null 2>&1 || true

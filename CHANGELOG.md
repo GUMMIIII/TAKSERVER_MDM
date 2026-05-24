@@ -16,6 +16,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.20] – 2026-05-24
+
+### Fixed
+
+- **VPN tunnel broken on some Android phones after v0.0.17** — the explicit `tun-mtu 1500` we added in v0.0.17 caused `link-mtu inconsistent: local=1542, remote=1541/1544` negotiation warnings with the OpenVPN-for-Android client, and on some phone/WLAN combinations no packets made it through the tunnel at all (browser couldn't load any site while VPN was on, but VPN-off worked). Reverted: `tun-mtu` is now **not pinned** and OpenVPN auto-negotiates. `mssfix 1400` alone still solves the TCP-fragmentation symptom that originally motivated the change.
+- `setup_server.sh` actively removes any stale `tun-mtu` line on re-run, so existing deployments get the fix without manual surgery.
+
+### Migration
+
+Live patch:
+```bash
+docker exec komms_openvpn sed -i '/^tun-mtu/d' /etc/openvpn/openvpn.conf
+docker compose -f /opt/komms/server/docker-compose.yml restart openvpn
+```
+
+Then on each affected phone: disconnect + reconnect OpenVPN.
+
+---
+
 ## [0.0.19] – 2026-05-24
 
 ### Fixed
