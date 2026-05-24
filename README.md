@@ -8,6 +8,16 @@ One installation gives your team encrypted chat, voice, file sharing, VPN, TAK s
 
 ---
 
+## A note from the maintainer
+
+Hey — this is a hobby project I built for my own deployment and decided to publish in case it helps others running similar setups. It works for me, but I'm one person: expect bugs, rough edges, and undocumented assumptions baked into the code.
+
+If you run into problems or have ideas, please open an [issue](https://github.com/GUMMIIII/TAKSERVER_MDM/issues) — I read all of them and I'm genuinely happy to get feedback, both bug reports and suggestions.
+
+I'll try to respond within a few days. Bigger changes (new services, refactors) might take longer depending on how much free-time work they need, but they're not off the table.
+
+---
+
 ## What's Included
 
 | Service | Role | VPN required |
