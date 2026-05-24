@@ -16,6 +16,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.18] – 2026-05-24
+
+### Fixed
+
+- **postgres healthcheck log spam** — `pg_isready -U ${DB_USER}` had no `-d` so it defaulted to a database named after the user (`komms`), which does not exist. Every healthcheck interval (10s) printed `FATAL: database "komms" does not exist` to the postgres log, adding ~360 noise lines per hour and obscuring real issues. Fixed by adding `-d postgres` (the always-present default DB). The healthcheck still confirms the server is accepting connections.
+
+---
+
 ## [0.0.17] – 2026-05-24
 
 ### Fixed

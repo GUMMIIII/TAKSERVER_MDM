@@ -120,7 +120,12 @@ services:
     networks:
       - komms_internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      # -d postgres: without an explicit -d, pg_isready defaults to a database
+      # named after the user (e.g. "komms"), which does not exist and floods
+      # the postgres log with FATAL "database komms does not exist" entries
+      # every interval. The 'postgres' DB always exists; pg_isready still
+      # confirms the server is accepting connections.
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
