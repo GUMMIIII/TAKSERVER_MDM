@@ -1,5 +1,11 @@
 # KOMMS – Self-Hosted Communications & MDM Platform
 
+[![License: AGPL v3](https://img.shields.io/github/license/GUMMIIII/TAKSERVER_MDM?color=blue)](LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/GUMMIIII/TAKSERVER_MDM?label=release)](https://github.com/GUMMIIII/TAKSERVER_MDM/releases)
+[![Last Commit](https://img.shields.io/github/last-commit/GUMMIIII/TAKSERVER_MDM)](https://github.com/GUMMIIII/TAKSERVER_MDM/commits/main)
+[![Issues](https://img.shields.io/github/issues/GUMMIIII/TAKSERVER_MDM)](https://github.com/GUMMIIII/TAKSERVER_MDM/issues)
+[![Stars](https://img.shields.io/github/stars/GUMMIIII/TAKSERVER_MDM?style=social)](https://github.com/GUMMIIII/TAKSERVER_MDM/stargazers)
+
 A fully self-hosted, secure communications platform with mobile device management for Android and Windows.  
 One installation gives your team encrypted chat, voice, file sharing, VPN, TAK situational awareness, and MDM — all behind a single SSO.
 
