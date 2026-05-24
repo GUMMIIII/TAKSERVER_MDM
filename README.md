@@ -116,7 +116,11 @@ sudo bash /opt/komms/server/setup_tak.sh
 
 #### Companion: ATAK OTA Updates
 
-If you want your ATAK clients to receive over-the-air APK + plugin updates from your own TAKServer instead of pulling from external sources, see the companion repo **[GUMMIIII/takserver_ota](https://github.com/GUMMIIII/takserver_ota)** — drop-in OTA update channel for ATAK that integrates with the TAKServer set up here.
+If you want your ATAK clients to receive over-the-air APK + plugin updates from your own TAKServer instead of pulling from external sources, see the companion repo **[GUMMIIII/takserver_ota](https://github.com/GUMMIIII/takserver_ota)**.
+
+It sets up a self-hosted OTA channel served from this same TAKServer instance — ATAK clients check in, pull the latest APK and plugin set, and stay up to date without anyone touching a device manually. Useful for keeping a fleet of field devices in sync after a TAK version bump or plugin change.
+
+Integrates with the deployment described here: nginx serves the update manifests behind the same TLS cert + Authelia gate, no separate domain or firewall hole needed.
 
 ---
 

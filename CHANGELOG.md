@@ -16,6 +16,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.12] – 2026-05-24
+
+### Changed
+
+- **README: added "A note from the maintainer" section** — sets expectations: solo-maintained hobby project, bugs likely, feedback/issues welcome, response within a few days (longer for bigger changes).
+- **README: added Companion section for [GUMMIIII/takserver_ota](https://github.com/GUMMIIII/takserver_ota)** — self-hosted OTA APK + plugin update channel for ATAK that plugs into the TAKServer set up here. Useful for keeping field-device fleets in sync without manual updates.
+- **CHANGELOG: anonymized live deployment reference** in the v0.0.10 entry (removed the operator's real domain).
+
+### Notes
+
+No functional changes — documentation only. Skipping straight from v0.0.10 → v0.0.12 to keep the README maintainer-note (released as v0.0.11) on its own version line.
+
+---
+
+## [0.0.11] – 2026-05-24
+
+### Changed
+
+- **README: maintainer note** — see v0.0.12 entry above for the consolidated description.
+
+---
+
 ## [0.0.10] – 2026-05-24
 
 ### Fixed
