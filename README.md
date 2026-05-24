@@ -114,6 +114,10 @@ sudo bash /opt/komms/server/setup_tak.sh
 
 `setup_tak.sh` takes **5–10 minutes** — most of this is waiting for TAKServer's internal grid to initialize before the admin certificate can be registered. This is expected; do not interrupt the script.
 
+#### Companion: ATAK OTA Updates
+
+If you want your ATAK clients to receive over-the-air APK + plugin updates from your own TAKServer instead of pulling from external sources, see the companion repo **[GUMMIIII/takserver_ota](https://github.com/GUMMIIII/takserver_ota)** — drop-in OTA update channel for ATAK that integrates with the TAKServer set up here.
+
 ---
 
 ## User Management
