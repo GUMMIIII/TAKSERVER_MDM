@@ -242,8 +242,12 @@ http {
             proxy_set_header   Destination       $http_destination;
         }
 
-        # WOPI endpoint — bypass Authelia; token-authenticated by Nextcloud (Collabora callbacks)
-        location ~ ^/index\.php/apps/richdocuments/wopi/ {
+        # richdocuments / Collabora — bypass Authelia for server-to-server calls.
+        # Collabora fetches WOPI endpoints + template/userconfig presets without a
+        # browser session; they're access-token-authenticated by Nextcloud itself.
+        # Matches both /index.php/apps/richdocuments/... and /apps/richdocuments/...
+        # (the preset-loader uses the short form even when index.php URLs are off).
+        location ~ ^/(index\.php/)?apps/richdocuments/ {
             proxy_pass         http://nextcloud;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
