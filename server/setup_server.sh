@@ -34,7 +34,6 @@ set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a
 [[ -z "${DB_PASS:-}" ]] && err "DB_PASS not set in .env"
 [[ -z "${LDAP_ADMIN_PASS:-}" ]] && err "LDAP_ADMIN_PASS not set in .env"
 
-DEPLOY_MODE="${DEPLOY_MODE:-lan}"
 DATA_DIR="${DATA_DIR:-/opt/komms-data}"
 
 # Verzeichnisse anlegen (idempotent — falls setup_server.sh standalone läuft)
@@ -54,36 +53,23 @@ mkdir -p \
 step "[1/7] Configuring firewall (UFW)"
 if ! command -v ufw &>/dev/null; then
     warn "UFW not installed — skipping firewall setup."
-elif [[ "$DEPLOY_MODE" == "lan" ]]; then
-    ufw --force reset >/dev/null
-    ufw default deny incoming
-    ufw default allow outgoing
-    ufw allow 22/tcp    comment "SSH"
-    ufw allow 80/tcp    comment "HTTP"
-    ufw allow 443/tcp   comment "HTTPS"
-    ufw allow 8080/tcp  comment "Element Web"
-    ufw allow "${VPN_PORT:-1194}/udp" comment "OpenVPN"
-    ufw allow 64738/tcp comment "Mumble TCP"
-    ufw allow 64738/udp comment "Mumble UDP"
-    ufw allow from "${VPN_SUBNET:-10.8.0.0}/24" to any port 53 proto udp comment "DNS for VPN clients (dnsmasq)"
-    ufw --force enable
-    ok "Firewall configured (LAN mode)"
 else
     ufw --force reset >/dev/null
     ufw default deny incoming
     ufw default allow outgoing
     ufw allow 22/tcp    comment "SSH"
     ufw allow 80/tcp    comment "HTTP → HTTPS redirect"
-    ufw allow 443/tcp   comment "HTTPS"
+    ufw allow 443/tcp   comment "HTTPS (all web services via nginx)"
     ufw allow "${VPN_PORT:-1194}/udp" comment "OpenVPN"
     ufw allow 8089/tcp  comment "ATAK/WinTAK TLS"
-    ufw allow 8443/tcp  comment "TAKServer Marti Dashboard + WebTAK"
     ufw allow 8444/tcp  comment "TAKServer cert enrollment"
     ufw allow 64738/tcp comment "Mumble TCP"
     ufw allow 64738/udp comment "Mumble UDP"
+    # Port 8443 (TAKServer) is NOT exposed externally — nginx proxies tak.DOMAIN
+    # through 443 with the admin cert. Direct 8443 access was removed in v0.0.7.
     ufw allow from "${VPN_SUBNET:-10.8.0.0}/24" to any port 53 proto udp comment "DNS for VPN clients (dnsmasq)"
     ufw --force enable
-    ok "Firewall configured (VPS mode)"
+    ok "Firewall configured"
     if command -v fail2ban-client &>/dev/null; then
         systemctl enable --now fail2ban >/dev/null 2>&1 || true
         ok "fail2ban enabled"
@@ -95,42 +81,41 @@ step "[2/7] TLS certificate"
 CERT_DIR="$DATA_DIR/config/nginx/certs"
 mkdir -p "$CERT_DIR"
 
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
-        info "Obtaining Let's Encrypt certificate for ${DOMAIN} and subdomains..."
-        if ! command -v certbot &>/dev/null; then
-            apt-get install -y -qq certbot
-        fi
-        certbot certonly --standalone --non-interactive --agree-tos --expand \
-            -m "${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL not set in .env}" \
-            -d "${DOMAIN}" \
-            -d "auth.${DOMAIN}" \
-            -d "mdm.${DOMAIN}" \
-            -d "cloud.${DOMAIN}" \
-            -d "matrix.${DOMAIN}" \
-            -d "element.${DOMAIN}" \
-            -d "ldap.${DOMAIN}" \
-            -d "collabora.${DOMAIN}" \
-            ${TAK_DOMAIN:+-d "${TAK_DOMAIN}"} \
-            2>&1 | tee /tmp/certbot.log | grep -E "(Congratulations|Certificate|error|Error)" || true
-        if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
-            err "certbot failed — check /tmp/certbot.log for details."
-        fi
-        ok "Let's Encrypt certificate obtained"
-    else
-        ok "Let's Encrypt certificate already exists"
+if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+    info "Obtaining Let's Encrypt certificate for ${DOMAIN} and subdomains..."
+    if ! command -v certbot &>/dev/null; then
+        apt-get install -y -qq certbot
     fi
-    cp "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" "$CERT_DIR/komms.crt"
-    cp "/etc/letsencrypt/live/${DOMAIN}/privkey.pem"   "$CERT_DIR/komms.key"
-    chmod 644 "$CERT_DIR/komms.crt"
-    chmod 600 "$CERT_DIR/komms.key"
-    ok "Certificate copied to nginx"
+    certbot certonly --standalone --non-interactive --agree-tos --expand \
+        -m "${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL not set in .env}" \
+        -d "${DOMAIN}" \
+        -d "auth.${DOMAIN}" \
+        -d "mdm.${DOMAIN}" \
+        -d "cloud.${DOMAIN}" \
+        -d "matrix.${DOMAIN}" \
+        -d "element.${DOMAIN}" \
+        -d "ldap.${DOMAIN}" \
+        -d "collabora.${DOMAIN}" \
+        ${TAK_DOMAIN:+-d "${TAK_DOMAIN}"} \
+        2>&1 | tee /tmp/certbot.log | grep -E "(Congratulations|Certificate|error|Error)" || true
+    if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+        err "certbot failed — check /tmp/certbot.log for details."
+    fi
+    ok "Let's Encrypt certificate obtained"
+else
+    ok "Let's Encrypt certificate already exists"
+fi
+cp "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" "$CERT_DIR/komms.crt"
+cp "/etc/letsencrypt/live/${DOMAIN}/privkey.pem"   "$CERT_DIR/komms.key"
+chmod 644 "$CERT_DIR/komms.crt"
+chmod 600 "$CERT_DIR/komms.key"
+ok "Certificate copied to nginx"
 
-    # Deploy hook: copy renewed cert + reload nginx
-    HOOK_DIR="/etc/letsencrypt/renewal-hooks/deploy"
-    mkdir -p "$HOOK_DIR"
-    CERT_DIR_ABS="$CERT_DIR"
-    cat > "$HOOK_DIR/komms-nginx.sh" << HOOK
+# Deploy hook: copy renewed cert + reload nginx
+HOOK_DIR="/etc/letsencrypt/renewal-hooks/deploy"
+mkdir -p "$HOOK_DIR"
+CERT_DIR_ABS="$CERT_DIR"
+cat > "$HOOK_DIR/komms-nginx.sh" << HOOK
 #!/bin/bash
 cp "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" "${CERT_DIR_ABS}/komms.crt"
 cp "/etc/letsencrypt/live/${DOMAIN}/privkey.pem"   "${CERT_DIR_ABS}/komms.key"
@@ -138,22 +123,8 @@ chmod 644 "${CERT_DIR_ABS}/komms.crt"
 chmod 600 "${CERT_DIR_ABS}/komms.key"
 docker exec komms_nginx nginx -s reload 2>/dev/null || true
 HOOK
-    chmod +x "$HOOK_DIR/komms-nginx.sh"
-    ok "Certbot renewal hook installed"
-else
-    if [[ ! -f "$CERT_DIR/komms.crt" ]]; then
-        SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
-        openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
-            -keyout "$CERT_DIR/komms.key" \
-            -out    "$CERT_DIR/komms.crt" \
-            -subj   "/CN=${DOMAIN}/O=${CERT_ORG:-KOMMS}/C=${CERT_COUNTRY:-DE}/ST=${CERT_STATE:-Bayern}/L=${CERT_CITY:-Berlin}" \
-            -addext "subjectAltName=DNS:${DOMAIN},IP:${SERVER_IP}" \
-            2>/dev/null
-        ok "Self-signed certificate generated"
-    else
-        ok "TLS certificate already exists"
-    fi
-fi
+chmod +x "$HOOK_DIR/komms-nginx.sh"
+ok "Certbot renewal hook installed"
 
 # Placeholder tak-admin cert so nginx can start before setup_tak.sh runs.
 # setup_tak.sh overwrites these with the real admin cert extracted from admin.p12.
@@ -166,39 +137,38 @@ fi
 # ── [3] Generate configs ──────────────────────────────────────────────────────
 step "[3/7] Generating service configuration"
 
-# nginx.conf: VPS uses subdomain template, LAN keeps existing subpath config
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    VPS_TPL="$SCRIPT_DIR/nginx/nginx.conf.vps.template"
-    [[ -f "$VPS_TPL" ]] || err "VPS nginx template not found at $VPS_TPL"
-    TAK_DOMAIN="${TAK_DOMAIN:-tak.${DOMAIN}}"
-    export DOMAIN VPN_SUBNET TAK_DOMAIN
-    envsubst '${DOMAIN} ${VPN_SUBNET} ${TAK_DOMAIN}' < "$VPS_TPL" > "$DATA_DIR/config/nginx/nginx.conf"
-    ok "nginx.conf generated → $DATA_DIR/config/nginx/nginx.conf"
+# nginx.conf — render from the subdomain template via envsubst
+VPS_TPL="$SCRIPT_DIR/nginx/nginx.conf.vps.template"
+[[ -f "$VPS_TPL" ]] || err "nginx template not found at $VPS_TPL"
+TAK_DOMAIN="${TAK_DOMAIN:-tak.${DOMAIN}}"
+export DOMAIN VPN_SUBNET TAK_DOMAIN
+envsubst '${DOMAIN} ${VPN_SUBNET} ${TAK_DOMAIN}' < "$VPS_TPL" > "$DATA_DIR/config/nginx/nginx.conf"
+ok "nginx.conf generated → $DATA_DIR/config/nginx/nginx.conf"
 
-    # Authelia main configuration
-    AUTHELIA_TPL="$SCRIPT_DIR/authelia/configuration.yml.template"
-    [[ -f "$AUTHELIA_TPL" ]] || err "Authelia config template not found at $AUTHELIA_TPL"
-    export LDAP_BASE_DN DB_USER TAK_DOMAIN
-    envsubst '${DOMAIN} ${LDAP_BASE_DN} ${DB_USER} ${TAK_DOMAIN}' \
-        < "$AUTHELIA_TPL" > "$DATA_DIR/config/authelia/configuration.yml"
-    ok "authelia/configuration.yml generated → $DATA_DIR/config/authelia/"
+# Authelia main configuration
+AUTHELIA_TPL="$SCRIPT_DIR/authelia/configuration.yml.template"
+[[ -f "$AUTHELIA_TPL" ]] || err "Authelia config template not found at $AUTHELIA_TPL"
+export LDAP_BASE_DN DB_USER TAK_DOMAIN
+envsubst '${DOMAIN} ${LDAP_BASE_DN} ${DB_USER} ${TAK_DOMAIN}' \
+    < "$AUTHELIA_TPL" > "$DATA_DIR/config/authelia/configuration.yml"
+ok "authelia/configuration.yml generated → $DATA_DIR/config/authelia/"
 
-    # Authelia OIDC provider config — appended to configuration.yml
-    OIDC_PEM="$DATA_DIR/config/authelia/oidc.pem"
-    AUTHELIA_CFG="$DATA_DIR/config/authelia/configuration.yml"
-    if [[ ! -f "$OIDC_PEM" ]]; then
-        info "Generating RSA-4096 key for Authelia OIDC JWKS..."
-        openssl genrsa 4096 > "$OIDC_PEM" 2>/dev/null
-        chmod 600 "$OIDC_PEM"
-        ok "authelia/oidc.pem generated"
-    else
-        ok "authelia/oidc.pem already exists"
-    fi
-    _OIDC_HMAC="${AUTHELIA_OIDC_HMAC_SECRET:?AUTHELIA_OIDC_HMAC_SECRET not set in .env}"
-    _NC_SECRET="${NEXTCLOUD_OIDC_SECRET:?NEXTCLOUD_OIDC_SECRET not set in .env}"
-    _SYNAPSE_SECRET="${SYNAPSE_OIDC_SECRET:?SYNAPSE_OIDC_SECRET not set in .env}"
-    {
-        cat << OIDC_HEADER
+# Authelia OIDC provider config — appended to configuration.yml
+OIDC_PEM="$DATA_DIR/config/authelia/oidc.pem"
+AUTHELIA_CFG="$DATA_DIR/config/authelia/configuration.yml"
+if [[ ! -f "$OIDC_PEM" ]]; then
+    info "Generating RSA-4096 key for Authelia OIDC JWKS..."
+    openssl genrsa 4096 > "$OIDC_PEM" 2>/dev/null
+    chmod 600 "$OIDC_PEM"
+    ok "authelia/oidc.pem generated"
+else
+    ok "authelia/oidc.pem already exists"
+fi
+_OIDC_HMAC="${AUTHELIA_OIDC_HMAC_SECRET:?AUTHELIA_OIDC_HMAC_SECRET not set in .env}"
+_NC_SECRET="${NEXTCLOUD_OIDC_SECRET:?NEXTCLOUD_OIDC_SECRET not set in .env}"
+_SYNAPSE_SECRET="${SYNAPSE_OIDC_SECRET:?SYNAPSE_OIDC_SECRET not set in .env}"
+{
+    cat << OIDC_HEADER
 
 identity_providers:
   oidc:
@@ -209,8 +179,8 @@ identity_providers:
         use: 'sig'
         key: |
 OIDC_HEADER
-        sed 's/^/          /' "$OIDC_PEM"
-        cat << OIDC_CLIENTS
+    sed 's/^/          /' "$OIDC_PEM"
+    cat << OIDC_CLIENTS
     clients:
       - client_id: 'nextcloud'
         client_name: 'Nextcloud'
@@ -233,20 +203,17 @@ OIDC_HEADER
         token_endpoint_auth_method: client_secret_basic
         consent_mode: implicit
 OIDC_CLIENTS
-    } >> "$AUTHELIA_CFG"
-    ok "OIDC provider block appended to authelia/configuration.yml"
+} >> "$AUTHELIA_CFG"
+ok "OIDC provider block appended to authelia/configuration.yml"
 
-    # dnsmasq split-horizon DNS config
-    mkdir -p "$SCRIPT_DIR/dnsmasq"
-    VPN_GW="${VPN_SUBNET:-10.8.0.0}"
-    VPN_GW="${VPN_GW%.*}.1"
-    export VPN_GW
-    envsubst '${DOMAIN} ${VPN_GW}' \
-        < "$SCRIPT_DIR/dnsmasq/dnsmasq.conf.template" > "$DATA_DIR/config/dnsmasq/dnsmasq.conf"
-    ok "dnsmasq.conf generated → $DATA_DIR/config/dnsmasq/ (*.${DOMAIN} → ${VPN_GW})"
-else
-    ok "nginx.conf unchanged (LAN subpath mode)"
-fi
+# dnsmasq split-horizon DNS config
+mkdir -p "$SCRIPT_DIR/dnsmasq"
+VPN_GW="${VPN_SUBNET:-10.8.0.0}"
+VPN_GW="${VPN_GW%.*}.1"
+export VPN_GW
+envsubst '${DOMAIN} ${VPN_GW}' \
+    < "$SCRIPT_DIR/dnsmasq/dnsmasq.conf.template" > "$DATA_DIR/config/dnsmasq/dnsmasq.conf"
+ok "dnsmasq.conf generated → $DATA_DIR/config/dnsmasq/ (*.${DOMAIN} → ${VPN_GW})"
 
 # Matrix homeserver.yaml — template stays in repo, generated file goes to data dir
 MATRIX_TPL="$SCRIPT_DIR/matrix/homeserver.yaml"
@@ -265,12 +232,8 @@ else
     ok "homeserver.yaml already exists in data dir"
 fi
 
-# Element Web config.json — always written from current mode settings
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    MATRIX_BASE_URL="https://matrix.${DOMAIN}"
-else
-    MATRIX_BASE_URL="https://${DOMAIN}"
-fi
+# Element Web config.json
+MATRIX_BASE_URL="https://matrix.${DOMAIN}"
 
 cat > "$DATA_DIR/config/element/config.json" << EOF
 {
@@ -359,12 +322,9 @@ cd "$SCRIPT_DIR"
 info "Building Synapse custom image (adds matrix-synapse-ldap3)..."
 docker compose build synapse --quiet
 
-_BASE_SERVICES="nginx postgres redis lldap authelia headwind openvpn synapse mumble nextcloud element-web collabora"
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    info "Building dnsmasq image (VPS split-horizon DNS)..."
-    docker compose build dnsmasq --quiet
-    _BASE_SERVICES="$_BASE_SERVICES dnsmasq"
-fi
+_BASE_SERVICES="nginx postgres redis lldap authelia headwind openvpn synapse mumble nextcloud element-web collabora dnsmasq"
+info "Building dnsmasq image (split-horizon DNS for VPN clients)..."
+docker compose build dnsmasq --quiet
 
 TAK_IMAGE_VAL="${TAK_IMAGE:-}"
 if [[ -n "$TAK_IMAGE_VAL" ]] && docker image inspect "$TAK_IMAGE_VAL" &>/dev/null 2>&1; then
@@ -477,15 +437,13 @@ CRONEOF
 chmod 644 /etc/cron.d/komms-nextcloud
 ok "Nextcloud cron job installed (/etc/cron.d/komms-nextcloud)"
 
-# Install and configure richdocuments (Collabora Online) if in VPS mode
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    info "Installing Nextcloud richdocuments app (Collabora Office)..."
-    docker compose exec -T -u www-data nextcloud php occ app:install richdocuments >/dev/null 2>&1 || \
-        docker compose exec -T -u www-data nextcloud php occ app:enable  richdocuments >/dev/null 2>&1 || true
-    docker compose exec -T -u www-data nextcloud php occ config:app:set richdocuments wopi_url \
-        --value="https://collabora.${DOMAIN}" >/dev/null 2>&1 || true
-    ok "Nextcloud richdocuments: Collabora wopi_url=https://collabora.${DOMAIN}"
-fi
+# Install and configure richdocuments (Collabora Online)
+info "Installing Nextcloud richdocuments app (Collabora Office)..."
+docker compose exec -T -u www-data nextcloud php occ app:install richdocuments >/dev/null 2>&1 || \
+    docker compose exec -T -u www-data nextcloud php occ app:enable  richdocuments >/dev/null 2>&1 || true
+docker compose exec -T -u www-data nextcloud php occ config:app:set richdocuments wopi_url \
+    --value="https://collabora.${DOMAIN}" >/dev/null 2>&1 || true
+ok "Nextcloud richdocuments: Collabora wopi_url=https://collabora.${DOMAIN}"
 
 # ── [7] Headwind MDM admin password ───────────────────────────────────────────
 step "[7/7] Setting Headwind MDM admin password"

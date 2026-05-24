@@ -120,15 +120,8 @@ ok "Backed up → $BACKUP_FILE"
 step "[5/6] Updating"
 cd "$SCRIPT_DIR"
 
-# Include tak profile if TAKServer container is currently running
-COMPOSE_OPTS=()
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^komms_tak$"; then
-    COMPOSE_OPTS+=(--profile tak)
-    info "TAKServer is running — including tak profile"
-fi
-
 info "Stopping services (volumes preserved)..."
-docker compose "${COMPOSE_OPTS[@]}" down
+docker compose down
 ok "Services stopped"
 
 info "Checking out $TARGET_REF..."
@@ -162,10 +155,12 @@ fi
 
 info "Pulling updated Docker images..."
 cd "$SCRIPT_DIR"
-docker compose "${COMPOSE_OPTS[@]}" pull --quiet 2>/dev/null || true
+# --ignore-buildable skips synapse/dnsmasq (they build from local Dockerfiles).
+# TAKServer's image is loaded by setup_tak.sh and is not on Docker Hub.
+docker compose pull --ignore-buildable --quiet 2>/dev/null || true
 
 info "Starting services..."
-docker compose "${COMPOSE_OPTS[@]}" up -d --remove-orphans
+docker compose up -d --remove-orphans
 ok "Services started"
 
 # ── [6] Verify ────────────────────────────────────────────────────────────────

@@ -224,7 +224,11 @@ services:
   # Requires the TAKServer Docker image from tak.gov (free account).
   # Run setup_tak.sh to load the image and perform first-time setup.
   takserver:
-    image: ${TAK_IMAGE:-takserver/takserver:5.3-RELEASE-35}
+    # TAK_IMAGE is populated by setup_tak.sh after the image is built/loaded
+    # from the TAKSERVER-DOCKER-*.zip placed in /opt/komms-data/tak-release/.
+    # The 'no-tak-image-loaded' tag is a sentinel — docker compose up will fail
+    # to find it (intentional) if setup_tak.sh has not been run yet.
+    image: ${TAK_IMAGE:-no-tak-image-loaded}
     container_name: komms_tak
     restart: unless-stopped
     ports:

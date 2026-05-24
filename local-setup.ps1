@@ -116,7 +116,8 @@ VPN_SUBNET=10.8.0.0
 VPN_MASK=255.255.255.0
 
 TAK_CERT_PASS=atakatak
-TAK_IMAGE=takserver/takserver:5.3-RELEASE-35
+# TAK_IMAGE is set by setup_tak.sh after the image is built/loaded from the ZIP.
+TAK_IMAGE=
 
 CERT_COUNTRY=DE
 CERT_STATE=Bayern

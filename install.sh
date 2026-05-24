@@ -3,15 +3,18 @@
 #  TAKSERVER_MDM – One-Shot Installer
 #
 #  Usage:
-#    curl -fsSL https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/TAKSERVER_MDM/main/install.sh | bash
+#    curl -fsSL https://raw.githubusercontent.com/GUMMIIII/TAKSERVER_MDM/main/install.sh | bash
 #
 #  Private repo (GitHub PAT required):
 #    curl -H "Authorization: token $GITHUB_PAT" \
-#         -fsSL https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/TAKSERVER_MDM/main/install.sh \
+#         -fsSL https://raw.githubusercontent.com/GUMMIIII/TAKSERVER_MDM/main/install.sh \
 #      | GITHUB_PAT=$GITHUB_PAT bash
 #
 #  Supported OS: Ubuntu 22.04 / 24.04 · Debian 12 · Raspberry Pi OS (64-bit)
 #  Architecture: x86_64 (full) · aarch64/arm64 (TAKServer unavailable)
+#
+#  Deployment: VPS / Cloud Server — public domain + Let's Encrypt subdomains.
+#  Requires DNS A-records for *.DOMAIN before running.
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -42,9 +45,9 @@ clear
 echo -e "${BLUE}${BOLD}"
 cat << 'BANNER'
   ╔══════════════════════════════════════════════════════════╗
-  ║          KOMMS – Secure Communications Platform         ║
-  ║    OpenVPN · TAKServer · Matrix · Mumble · Nextcloud    ║
-  ║              Headwind MDM  ·  Installer v1.0            ║
+  ║       TAKSERVER_MDM – Secure Communications Platform     ║
+  ║      OpenVPN · TAKServer · Matrix · Mumble · Nextcloud   ║
+  ║                  Headwind MDM  ·  Installer              ║
   ╚══════════════════════════════════════════════════════════╝
 BANNER
 echo -e "${NC}"
@@ -70,18 +73,7 @@ if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
     warn "ARM64 detected (Raspberry Pi). TAKServer is x86-only and will be skipped."
 fi
 
-# ── Deployment mode ───────────────────────────────────────────────────────────
-echo ""
-echo -e "  ${BOLD}Deployment mode:${NC}"
-echo -e "  ${CYAN}1)${NC} VPS / Cloud Server  — public IP or domain, UFW hardening, fail2ban"
-echo -e "  ${CYAN}2)${NC} LAN / Homelab       — private IP, basic firewall, no external exposure"
-echo ""
-printf "  ${CYAN}Select mode${NC} ${YELLOW}[1=VPS, 2=LAN, default: 1]${NC}: "
-read -r _MODE_INPUT < /dev/tty
-case "${_MODE_INPUT:-1}" in
-    2) DEPLOY_MODE=lan;  ok "Mode: LAN / Homelab" ;;
-    *) DEPLOY_MODE=vps;  ok "Mode: VPS / Cloud Server" ;;
-esac
+ok "Mode: VPS / Cloud Server (public domain + Let's Encrypt)"
 
 # ── Input helpers ─────────────────────────────────────────────────────────────
 prompt() {
@@ -120,46 +112,40 @@ hr
 
 echo -e "\n  ${BOLD}── Server ──────────────────────────────────────────${NC}"
 AUTO_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    info "Enter the public domain name for this server (e.g. komms.example.com)."
-    info "Auto-detected IP: ${AUTO_IP}"
-else
-    info "Enter the LAN IP of this server."
-fi
-DOMAIN=$(prompt "Server domain / IP" "${AUTO_IP}")
-[[ -z "$DOMAIN" ]] && err "Server domain/IP is required."
+info "Enter the public domain name for this server (e.g. komms.example.com)."
+info "Auto-detected IP: ${AUTO_IP}"
+DOMAIN=$(prompt "Server domain" "")
+[[ -z "$DOMAIN" ]] && err "Server domain is required."
 
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    VPS_IP=$(curl -s4 --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo "?")
-    TAK_DOMAIN="tak.${DOMAIN}"
-    echo ""
-    echo -e "  ${YELLOW}${BOLD}DNS records required before Let's Encrypt can issue certificates.${NC}"
-    echo -e "  Create these A records pointing to ${CYAN}${VPS_IP}${NC}:"
-    echo -e "    ${CYAN}${DOMAIN}${NC}"
-    echo -e "    ${CYAN}auth.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}element.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}matrix.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}cloud.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}mdm.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}mumble.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}tak.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}ldap.${DOMAIN}${NC}"
-    echo -e "    ${CYAN}collabora.${DOMAIN}${NC}"
-    echo -e "  ${YELLOW}(Or use a wildcard: *.${DOMAIN} + ${DOMAIN})${NC}"
-    echo ""
-    if ! prompt_yn "Are all DNS records live and pointing to this server?" "n"; then
-        warn "Set up DNS records first, then re-run the installer."
-        err "DNS not confirmed — aborting."
-    fi
-
-    echo -e "\n  ${BOLD}── Let's Encrypt ────────────────────────────────────${NC}"
-    info "A valid, internet-accessible email is required by Let's Encrypt for cert expiry notices."
-    while true; do
-        LETSENCRYPT_EMAIL=$(prompt "Let's Encrypt contact email" "")
-        [[ "$LETSENCRYPT_EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] && break
-        warn "Enter a real internet-accessible email address (e.g. you@gmail.com)."
-    done
+VPS_IP=$(curl -s4 --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo "?")
+TAK_DOMAIN="tak.${DOMAIN}"
+echo ""
+echo -e "  ${YELLOW}${BOLD}DNS records required before Let's Encrypt can issue certificates.${NC}"
+echo -e "  Create these A records pointing to ${CYAN}${VPS_IP}${NC}:"
+echo -e "    ${CYAN}${DOMAIN}${NC}"
+echo -e "    ${CYAN}auth.${DOMAIN}${NC}"
+echo -e "    ${CYAN}element.${DOMAIN}${NC}"
+echo -e "    ${CYAN}matrix.${DOMAIN}${NC}"
+echo -e "    ${CYAN}cloud.${DOMAIN}${NC}"
+echo -e "    ${CYAN}mdm.${DOMAIN}${NC}"
+echo -e "    ${CYAN}mumble.${DOMAIN}${NC}"
+echo -e "    ${CYAN}tak.${DOMAIN}${NC}"
+echo -e "    ${CYAN}ldap.${DOMAIN}${NC}"
+echo -e "    ${CYAN}collabora.${DOMAIN}${NC}"
+echo -e "  ${YELLOW}(Or use a wildcard: *.${DOMAIN} + ${DOMAIN})${NC}"
+echo ""
+if ! prompt_yn "Are all DNS records live and pointing to this server?" "n"; then
+    warn "Set up DNS records first, then re-run the installer."
+    err "DNS not confirmed — aborting."
 fi
+
+echo -e "\n  ${BOLD}── Let's Encrypt ────────────────────────────────────${NC}"
+info "A valid, internet-accessible email is required by Let's Encrypt for cert expiry notices."
+while true; do
+    LETSENCRYPT_EMAIL=$(prompt "Let's Encrypt contact email" "")
+    [[ "$LETSENCRYPT_EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] && break
+    warn "Enter a real internet-accessible email address (e.g. you@gmail.com)."
+done
 
 echo -e "\n  ${BOLD}── Database (PostgreSQL) ────────────────────────────${NC}"
 info "Shared internal database used by Matrix (Synapse), Nextcloud, and LLDAP."
@@ -185,11 +171,7 @@ NC_ADMIN=$(prompt "Nextcloud admin username" "admin")
 NC_PASS=$(prompt_secret "Nextcloud admin password")
 
 echo -e "\n  ${BOLD}── Matrix / Synapse ─────────────────────────────────${NC}"
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    info "Matrix user IDs will be @user:${DOMAIN} — enter base domain, not subdomain."
-else
-    info "Matrix user IDs take the form @user:<domain> — determines the identity suffix for all accounts."
-fi
+info "Matrix user IDs will be @user:${DOMAIN} — enter base domain, not subdomain."
 info "Three internal secrets (macaroon, form, registration) will be auto-generated."
 MATRIX_DOMAIN=$(prompt "Matrix server domain (for user IDs)" "$DOMAIN")
 MATRIX_MACAROON_SECRET=$(openssl rand -hex 32)
@@ -273,10 +255,7 @@ apt-get install -y -qq \
     curl wget git ca-certificates gnupg lsb-release \
     ufw fail2ban unattended-upgrades \
     openssl net-tools htop gettext-base unzip zip \
-    jq qrencode
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    apt-get install -y -qq certbot
-fi
+    jq qrencode certbot
 ok "Packages installed"
 
 # ── [3] Docker ────────────────────────────────────────────────────────────────
@@ -356,20 +335,12 @@ mkdir -p \
 # ── [5] Write .env ────────────────────────────────────────────────────────────
 step "[5/8] Writing .env"
 
-# Compute mode-specific derived values
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    HEADWIND_DOMAIN="mdm.${DOMAIN}"
-    NC_TRUSTED_DOMAIN="cloud.${DOMAIN}"
-    MATRIX_PUBLIC_BASEURL="https://matrix.${DOMAIN}"
-    HMDM_URL="https://mdm.${DOMAIN}"
-    TAK_DOMAIN="tak.${DOMAIN}"
-else
-    TAK_DOMAIN="tak.${DOMAIN}"
-    HEADWIND_DOMAIN="${DOMAIN}"
-    NC_TRUSTED_DOMAIN="${DOMAIN}"
-    MATRIX_PUBLIC_BASEURL="https://${DOMAIN}"
-    HMDM_URL="https://${DOMAIN}/mdm"
-fi
+# Derived service URLs (all subdomain-based)
+HEADWIND_DOMAIN="mdm.${DOMAIN}"
+NC_TRUSTED_DOMAIN="cloud.${DOMAIN}"
+MATRIX_PUBLIC_BASEURL="https://matrix.${DOMAIN}"
+HMDM_URL="https://mdm.${DOMAIN}"
+TAK_DOMAIN="tak.${DOMAIN}"
 
 cat > "$DATA_DIR/.env" << EOF
 # KOMMS Platform – Environment Configuration
@@ -378,7 +349,6 @@ cat > "$DATA_DIR/.env" << EOF
 
 DATA_DIR="${DATA_DIR}"
 
-DEPLOY_MODE="${DEPLOY_MODE}"
 DOMAIN="${DOMAIN}"
 
 DB_USER="${DB_USER}"
@@ -427,7 +397,9 @@ LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
 
 TAK_DOMAIN="${TAK_DOMAIN}"
 TAK_CERT_PASS="${CERT_PASS}"
-TAK_IMAGE=takserver/takserver:5.3-RELEASE-35
+# TAK_IMAGE is set by setup_tak.sh after the image is loaded/built from the ZIP.
+# Left blank here so docker-compose pulls/builds nothing prematurely.
+TAK_IMAGE=
 
 CERT_COUNTRY="${CERT_COUNTRY}"
 CERT_STATE="${CERT_STATE}"
@@ -490,20 +462,14 @@ docker compose exec -T postgres pg_isready -U "${DB_USER}" >/dev/null 2>&1 \
 
 _chk "LLDAP" "http://127.0.0.1:17170/health"
 
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    _chk "Headwind MDM"  "https://mdm.${DOMAIN}/rest/public/auth/options"
-    _chk "Nextcloud"     "https://cloud.${DOMAIN}/status.php"
-    _chk "Matrix"        "https://matrix.${DOMAIN}/_matrix/client/versions"
-    _chk "Element Web"   "https://element.${DOMAIN}/"
-else
-    _chk "Headwind MDM"  "https://${DOMAIN}/mdm/rest/public/auth/options"
-    _chk "Nextcloud"     "https://${DOMAIN}/nextcloud/status.php"
-    _chk "Matrix"        "https://${DOMAIN}/_matrix/client/versions"
-    _chk "Element Web"   "https://${DOMAIN}:8080/"
-fi
+_chk "Headwind MDM"  "https://mdm.${DOMAIN}/rest/public/auth/options"
+_chk "Nextcloud"     "https://cloud.${DOMAIN}/status.php"
+_chk "Matrix"        "https://matrix.${DOMAIN}/_matrix/client/versions"
+_chk "Element Web"   "https://element.${DOMAIN}/"
 
-_chk_port "Mumble" "${DOMAIN}" 64738
-[[ "$SETUP_TAK" == "true" ]] && _chk "TAKServer" "https://${DOMAIN}:8443"
+_chk_port "Mumble" "mumble.${DOMAIN}" 64738
+# TAKServer reachable via nginx (all paths on tak.DOMAIN, no direct port exposure needed).
+[[ "$SETUP_TAK" == "true" ]] && _chk "TAKServer" "https://tak.${DOMAIN}/"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
@@ -520,25 +486,14 @@ echo ""
 printf "  %-18s %-44s %s\n" "Service" "URL" "Login"
 printf "  %-18s %-44s %s\n" "──────────────────" "────────────────────────────────────────────" "────────────────────────────────"
 
-if [[ "$DEPLOY_MODE" == "vps" ]]; then
-    printf "  %-18s %-44s %s\n" "Headwind MDM"  "https://mdm.${DOMAIN}"        "${HMDM_ADMIN_EMAIL}  /  ${HMDM_ADMIN_PASS}"
-    printf "  %-18s %-44s %s\n" "Nextcloud"     "https://cloud.${DOMAIN}"      "${NC_ADMIN}  /  ${NC_PASS}"
-    printf "  %-18s %-44s %s\n" "Element Web"   "https://element.${DOMAIN}"    "via LLDAP credentials"
-    printf "  %-18s %-44s %s\n" "Matrix"        "https://matrix.${DOMAIN}"     "(Element / ATAK / Android app)"
-    printf "  %-18s %-44s %s\n" "LLDAP Admin"   "https://ldap.${DOMAIN}"       "admin  /  ${LDAP_ADMIN_PASS}"
-    printf "  %-18s %-44s %s\n" "Mumble"        "${DOMAIN}:64738"              "SuperUser  /  ${MUMBLE_PASS}"
-    [[ "$SETUP_TAK" == "true" ]] && \
-    printf "  %-18s %-44s %s\n" "TAKServer"     "https://${DOMAIN}:8443"       "cert-based (see add_user.sh)"
-else
-    printf "  %-18s %-44s %s\n" "Headwind MDM"  "https://${DOMAIN}/mdm"        "${HMDM_ADMIN_EMAIL}  /  ${HMDM_ADMIN_PASS}"
-    printf "  %-18s %-44s %s\n" "Nextcloud"     "https://${DOMAIN}/nextcloud"  "${NC_ADMIN}  /  ${NC_PASS}"
-    printf "  %-18s %-44s %s\n" "Element Web"   "https://${DOMAIN}:8080"       "via LLDAP credentials"
-    printf "  %-18s %-44s %s\n" "Matrix"        "https://${DOMAIN}/_matrix"    "(Element / ATAK / Android app)"
-    printf "  %-18s %-44s %s\n" "LLDAP Admin"   "https://${DOMAIN}/ldap"       "admin  /  ${LDAP_ADMIN_PASS}"
-    printf "  %-18s %-44s %s\n" "Mumble"        "${DOMAIN}:64738"              "SuperUser  /  ${MUMBLE_PASS}"
-    [[ "$SETUP_TAK" == "true" ]] && \
-    printf "  %-18s %-44s %s\n" "TAKServer"     "https://${DOMAIN}:8443"       "cert-based (see add_user.sh)"
-fi
+printf "  %-18s %-44s %s\n" "Headwind MDM"  "https://mdm.${DOMAIN}"        "${HMDM_ADMIN_EMAIL}  /  ${HMDM_ADMIN_PASS}"
+printf "  %-18s %-44s %s\n" "Nextcloud"     "https://cloud.${DOMAIN}"      "${NC_ADMIN}  /  ${NC_PASS}"
+printf "  %-18s %-44s %s\n" "Element Web"   "https://element.${DOMAIN}"    "via LLDAP credentials"
+printf "  %-18s %-44s %s\n" "Matrix"        "https://matrix.${DOMAIN}"     "(Element / ATAK / Android app)"
+printf "  %-18s %-44s %s\n" "LLDAP Admin"   "https://ldap.${DOMAIN}"       "admin  /  ${LDAP_ADMIN_PASS}"
+printf "  %-18s %-44s %s\n" "Mumble"        "mumble.${DOMAIN}:64738"       "SuperUser  /  ${MUMBLE_PASS}"
+[[ "$SETUP_TAK" == "true" ]] && \
+printf "  %-18s %-44s %s\n" "TAKServer"     "https://tak.${DOMAIN}"        "Authelia SSO (lldap_admin group)"
 
 echo ""
 echo -e "  ${BOLD}${YELLOW}─── Operator Account ───────────────────────────────${NC}"
@@ -568,9 +523,4 @@ echo -e "  Add user:        ${CYAN}sudo bash $KOMMS_DIR/server/add_user.sh <name
 echo -e "  Service status:  ${CYAN}cd $KOMMS_DIR/server && docker compose ps${NC}"
 echo -e "  Data directory:  ${CYAN}$DATA_DIR/${NC}  (configs, users, tak — survives git pull)"
 echo -e "  Logs:            ${CYAN}docker compose logs -f <service>${NC}"
-echo ""
-if [[ "$DEPLOY_MODE" == "lan" ]]; then
-    echo -e "  ${YELLOW}Note:${NC} LAN mode uses a self-signed certificate. Import ${CYAN}${DOMAIN}/nginx/certs/komms.crt${NC}"
-    echo -e "  into your device's trust store to avoid browser warnings."
-fi
 echo ""

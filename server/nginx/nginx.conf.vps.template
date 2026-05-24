@@ -387,8 +387,9 @@ http {
         ssl_protocols       TLSv1.2 TLSv1.3;
         ssl_ciphers         HIGH:!aNULL:!MD5;
         ssl_session_cache   shared:SSL:10m;
-        # No HSTS: keep it at 0 so browsers don't cache strict-transport-security
-        # for this host and block the direct port-8443 access used for Marti Dashboard.
+        # HSTS disabled on tak.DOMAIN — TAKServer's own port 8443 uses a self-signed
+        # cert (CN=tak.DOMAIN, issued by KOMMSca), and HSTS from the LE host would
+        # block users who need to reach it directly during troubleshooting.
         add_header Strict-Transport-Security "max-age=0" always;
 
         # All TAK paths — nginx presents the admin client cert to takserver:8443.

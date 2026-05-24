@@ -231,7 +231,7 @@ TAKSERVER_MDM/
 - TAKServer cert passphrase (`TAK_CERT_PASS`) defaults to `atakatak` — change it
 - Matrix federation is disabled by default (closed deployment)
 - Let's Encrypt renewal runs automatically via Certbot cron job (VPS only)
-- Firewall: allow only ports `80`, `443`, `1194/UDP`, `8089`, `8443`, `64738`
+- Firewall: `setup_server.sh` allows only `22/tcp`, `80/tcp`, `443/tcp`, `1194/udp` (VPN), `8089/tcp` (ATAK), `8444/tcp` (TAK cert enrollment), `64738/tcp+udp` (Mumble). Port `8443` is **not** exposed externally — nginx proxies TAKServer through `443`.
 - VPN enforcement cannot be bypassed via Authelia — it is enforced at the nginx IP layer
 - All secrets and configs live in `/opt/komms-data/` which is outside the git repository
 

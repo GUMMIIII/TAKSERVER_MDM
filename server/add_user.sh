@@ -102,7 +102,7 @@ echo ""
 cd "$SCRIPT_DIR"
 
 # ── [1] LLDAP – Create SSO account ───────────────────────────────────────────
-step "[1/5] Creating SSO account in LLDAP"
+step "[1/6] Creating SSO account in LLDAP"
 info "This account is the single login used across Matrix, Nextcloud, and the TAK WebUI."
 
 # Check LLDAP is reachable
@@ -192,7 +192,7 @@ if [[ "$MAKE_ADMIN" == "true" ]]; then
 fi
 
 # ── [2] OpenVPN certificate ───────────────────────────────────────────────────
-step "[2/5] Generating OpenVPN certificate"
+step "[2/6] Generating OpenVPN certificate"
 info "Creates a unique client certificate and .ovpn profile — import in the OpenVPN app (Android/Windows)."
 cd "$SCRIPT_DIR"
 
@@ -218,7 +218,7 @@ chmod 600 "$OVPN_OUT"
 ok "OpenVPN profile: ${USERNAME}.ovpn (LDAP auth required)"
 
 # ── [3] TAKServer client certificate + data package ──────────────────────────
-step "[3/5] Generating TAKServer certificate & data package"
+step "[3/6] Generating TAKServer certificate & data package"
 info "Creates a .zip data package — import in ATAK or WinTAK to auto-connect to TAKServer."
 
 TAK_IMAGE_VAL="${TAK_IMAGE:-}"
