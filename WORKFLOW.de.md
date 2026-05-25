@@ -160,13 +160,17 @@ Ohne VPN erreichbar:
   auth.domain.de        → Authelia SSO-Portal (Login für alle Dienste)
   cloud.domain.de       → Nextcloud (Authelia-Gated)
   collabora.domain.de   → Collabora Online (WOPI-Token-Auth via Nextcloud)
+  tak.domain.de         → TAKServer WebTAK / Marti (Authelia: lldap_admin)
 
 Nur mit VPN erreichbar:
   element.domain.de → Element Web    (Authelia: beliebiger Nutzer)
   matrix.domain.de  → Matrix/Synapse (kein Authelia, native Clients)
   mdm.domain.de     → Headwind MDM   (Authelia: lldap_admin)
   ldap.domain.de    → LLDAP Web UI   (Authelia: lldap_admin)
-  tak.domain.de     → TAKServer      (Authelia: lldap_admin)
+
+Direkt (kein nginx, kein VPN — öffentlich erreichbar):
+  tak.domain.de:8089 → ATAK/WinTAK CoT/SA  (TLS, x509 Client-Zertifikat)
+  tak.domain.de:8443 → TAKServer direkt     (ATAK OTA-Updates; mTLS Fehlersuche)
 ```
 
 ### Login-Übersicht (VPS)
@@ -182,7 +186,7 @@ Nur mit VPN erreichbar:
 | **TAKServer** | `https://tak.domain.de` | via Authelia SSO (lldap_admin) |
 | **Mumble** | `domain.de:64738` | Join-Passwort aus .env |
 
-> Element, MDM, LLDAP und TAKServer sind **nur mit aktivem VPN** erreichbar — nginx gibt 403 zurück, auch bei bestehender Authelia-Session.
+> Element, MDM und LLDAP sind **nur mit aktivem VPN** erreichbar — nginx gibt 403 zurück. TAKServer WebTAK (`tak.domain.de` via nginx:443) ist ohne VPN erreichbar — nur Authelia (lldap_admin-Gruppe) ist erforderlich.
 
 ---
 
@@ -504,12 +508,13 @@ nginx leitet den gesamten Traffic auf `tak.DOMAIN` (Port 443) an TAKServer-Port 
 
 **Zugang:**
 
-1. VPN verbinden
-2. `https://tak.DOMAIN/` oder `https://tak.DOMAIN/Marti/` aufrufen
-3. Über Authelia anmelden (lldap_admin-Gruppe erforderlich)
+1. `https://tak.DOMAIN/` oder `https://tak.DOMAIN/Marti/` aufrufen
+2. Über Authelia anmelden (lldap_admin-Gruppe erforderlich)
 
-> **Direktzugriff auf Port 8443 (Fehlersuche / ATAK TCP):**  
-> Port 8443 ist direkt über Docker erreichbar (`clientAuth=WANT`). Bei Bedarf `ca.pem` und `admin-browser.p12` in Firefox importieren für direkten Zertifikats-Login unter `https://tak.DOMAIN:8443/Marti/`.  
+Kein VPN erforderlich — TAKServer WebTAK ist nicht VPN-gesperrt. Nur Authelia (lldap_admin-Gruppe) kontrolliert den Zugang.
+
+> **Direktzugriff auf Port 8443 (Fehlersuche):**  
+> Port 8443 ist öffentlich erreichbar (UFW geöffnet, `clientAuth=WANT`). Bei Bedarf `ca.pem` und `admin-browser.p12` in Firefox importieren für direkten Zertifikats-Login unter `https://tak.DOMAIN:8443/Marti/`.  
 > Vom Server herunterladen:
 > ```bash
 > scp root@DEIN_SERVER:/opt/komms-data/tak/certs/files/ca.pem            ~/Downloads/tak-ca.pem

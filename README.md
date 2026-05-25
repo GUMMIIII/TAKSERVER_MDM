@@ -38,13 +38,15 @@ I'll try to respond within a few days. Bigger changes (new services, refactors) 
 | [Element Web](https://element.io) | Matrix web client | **Yes** |
 | [OpenVPN](https://openvpn.net) | VPN — required for all internal services | — |
 | [Headwind MDM](https://h-mdm.com) | Android MDM — app + config management | **Yes** |
-| [TAKServer](https://tak.gov) | Situational awareness (ATAK / WinTAK) | **Yes** |
+| [TAKServer](https://tak.gov) | Situational awareness (ATAK / WinTAK) | No* |
 | [Mumble](https://www.mumble.info) | Low-latency encrypted voice | **Yes** |
 | nginx | Reverse proxy — TLS termination, Authelia gate, VPN enforcement | — |
 | PostgreSQL | Shared database for Headwind, Synapse, Authelia, Nextcloud | — |
 
 **Scale:** Designed for small teams (< 50 devices).  
 **ARM64 / Raspberry Pi:** TAKServer is x86-only and is automatically skipped on ARM; all other services run on RPi 4/5 (64-bit OS).
+
+`* TAKServer WebTAK / Marti (browser) is reachable without VPN via nginx:443 — Authelia (lldap_admin group) is the only gate. ATAK clients connect directly on :8089 (CoT/SA) and :8443 (OTA updates), both publicly exposed.`
 
 ---
 
@@ -60,18 +62,19 @@ Internet
 │  auth.domain       → Authelia SSO portal  [no VPN]          │
 │  cloud.domain      → Nextcloud            [no VPN, Authelia] │
 │  collabora.domain  → Collabora Online     [no VPN, WOPI]     │
+│  tak.domain        → TAKServer WebTAK     [no VPN, Authelia*]│
 │  element.domain    → Element Web          [VPN + Authelia]   │
 │  matrix.domain     → Matrix / Synapse     [VPN only]         │
 │  mdm.domain        → Headwind MDM         [VPN + Authelia*]  │
 │  ldap.domain       → LLDAP Web UI         [VPN + Authelia*]  │
-│  tak.domain        → TAKServer WebTAK     [VPN + Authelia*]  │
 │                                                              │
-│  OpenVPN :1194/UDP    Mumble :64738    TAKServer :8089/8443  │
+│  OpenVPN :1194/UDP  Mumble :64738  TAKServer :8089/8443      │
 └──────────────────────────────────────────────────────────────┘
-         ▲                           ▲
-         │ HTTPS (no VPN needed)     │ HTTPS (VPN tunnel 10.8.0.0/24)
-    ─────┴────                 ──────┴──────
-   Nextcloud / Authelia       All other services
+         ▲                                ▲
+         │ HTTPS (no VPN needed)          │ HTTPS (VPN tunnel 10.8.0.0/24)
+    ─────┴──────────────────             ──────┴──────
+   auth / cloud / collabora              element / matrix
+   tak (WebTAK/Marti, Authelia)          mdm / ldap
 ```
 
 `* lldap_admin group membership required`
@@ -274,7 +277,7 @@ TAKSERVER_MDM/
 - TAKServer cert passphrase (`TAK_CERT_PASS`) defaults to `atakatak` — change it
 - Matrix federation is disabled by default (closed deployment)
 - Let's Encrypt renewal runs automatically via Certbot cron job (VPS only)
-- Firewall: `setup_server.sh` allows only `22/tcp`, `80/tcp`, `443/tcp`, `1194/udp` (VPN), `8089/tcp` (ATAK), `8444/tcp` (TAK cert enrollment), `64738/tcp+udp` (Mumble). Port `8443` is **not** exposed externally — nginx proxies TAKServer through `443`.
+- Firewall: `setup_server.sh` opens `22/tcp`, `80/tcp`, `443/tcp`, `1194/udp` (VPN), `8089/tcp` (ATAK/WinTAK TLS), `8443/tcp` (TAKServer direct — ATAK OTA uses the TAKServer-internal `KOMMSca` cert, not the Let's Encrypt cert on `:443`), `8444/tcp` (TAK cert enrollment), `64738/tcp+udp` (Mumble). TAKServer WebTAK / Marti is reachable without VPN via nginx on `:443` (Authelia lldap_admin gate).
 - VPN enforcement cannot be bypassed via Authelia — it is enforced at the nginx IP layer
 - All secrets and configs live in `/opt/komms-data/` which is outside the git repository
 
