@@ -298,6 +298,38 @@ cat > "$DATA_DIR/config/element/config.json" << EOF
 EOF
 ok "element/config.json written → $DATA_DIR/config/element/ (homeserver: ${MATRIX_BASE_URL})"
 
+# ── Jitsi Meet secrets ────────────────────────────────────────────────────────
+# Generated here (before OpenVPN) so docker compose run calls in step [4/7]
+# don't emit "variable is not set" warnings when parsing the full compose file.
+_write_secret() {
+    local key="$1" val="$2"
+    if grep -q "^${key}=" "$ENV_FILE"; then
+        sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+    else
+        echo "${key}=${val}" >> "$ENV_FILE"
+    fi
+}
+_jitsi_dirty=0
+if [[ -z "${JICOFO_COMPONENT_SECRET:-}" ]]; then
+    _write_secret JICOFO_COMPONENT_SECRET "$(openssl rand -hex 16)"; _jitsi_dirty=1
+fi
+if [[ -z "${JICOFO_AUTH_PASS:-}" ]]; then
+    _write_secret JICOFO_AUTH_PASS "$(openssl rand -hex 16)"; _jitsi_dirty=1
+fi
+if [[ -z "${JVB_AUTH_PASS:-}" ]]; then
+    _write_secret JVB_AUTH_PASS "$(openssl rand -hex 16)"; _jitsi_dirty=1
+fi
+if [[ -z "${JVB_ADVERTISE_IP:-}" ]]; then
+    _pub_ip=$(curl -fsSL --max-time 5 ifconfig.me 2>/dev/null || true)
+    if [[ -n "$_pub_ip" ]]; then
+        _write_secret JVB_ADVERTISE_IP "${_pub_ip}"; _jitsi_dirty=1
+    else
+        warn "Could not detect public IP — set JVB_ADVERTISE_IP in .env before starting Jitsi"
+    fi
+fi
+[[ $_jitsi_dirty -eq 1 ]] && { set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a; }
+ok "Jitsi Meet secrets ready"
+
 # ── [4] OpenVPN PKI ───────────────────────────────────────────────────────────
 step "[4/7] OpenVPN PKI"
 cd "$SCRIPT_DIR"
@@ -374,43 +406,6 @@ cd "$SCRIPT_DIR"
 
 info "Building Synapse custom image (adds matrix-synapse-ldap3)..."
 docker compose build synapse --quiet
-
-# Jitsi Meet secrets — auto-generate on first run.
-# _write_secret: sed returns 0 even without a match, so || never triggers.
-# Instead: check explicitly whether the key is present, then sed or append.
-_write_secret() {
-    local key="$1" val="$2"
-    if grep -q "^${key}=" "$ENV_FILE"; then
-        sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
-    else
-        echo "${key}=${val}" >> "$ENV_FILE"
-    fi
-}
-
-_jitsi_dirty=0
-if [[ -z "${JICOFO_COMPONENT_SECRET:-}" ]]; then
-    _write_secret JICOFO_COMPONENT_SECRET "$(openssl rand -hex 16)"
-    _jitsi_dirty=1
-fi
-if [[ -z "${JICOFO_AUTH_PASS:-}" ]]; then
-    _write_secret JICOFO_AUTH_PASS "$(openssl rand -hex 16)"
-    _jitsi_dirty=1
-fi
-if [[ -z "${JVB_AUTH_PASS:-}" ]]; then
-    _write_secret JVB_AUTH_PASS "$(openssl rand -hex 16)"
-    _jitsi_dirty=1
-fi
-if [[ -z "${JVB_ADVERTISE_IP:-}" ]]; then
-    _pub_ip=$(curl -fsSL --max-time 5 ifconfig.me 2>/dev/null || true)
-    if [[ -n "$_pub_ip" ]]; then
-        _write_secret JVB_ADVERTISE_IP "${_pub_ip}"
-        _jitsi_dirty=1
-    else
-        warn "Could not detect public IP — set JVB_ADVERTISE_IP in .env before starting Jitsi"
-    fi
-fi
-[[ $_jitsi_dirty -eq 1 ]] && { set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a; }
-ok "Jitsi Meet secrets ready"
 
 _BASE_SERVICES="nginx postgres redis lldap authelia headwind openvpn synapse mumble nextcloud element-web collabora dnsmasq jitsi-prosody jitsi-jicofo jitsi-jvb jitsi-web"
 info "Building dnsmasq image (split-horizon DNS for VPN clients)..."
