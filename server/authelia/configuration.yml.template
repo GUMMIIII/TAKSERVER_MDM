@@ -102,4 +102,5 @@ access_control:
     - domain:
         - cloud.${DOMAIN}
         - element.${DOMAIN}
+        - meet.${DOMAIN}
       policy: one_factor

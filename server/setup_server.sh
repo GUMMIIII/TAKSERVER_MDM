@@ -45,6 +45,11 @@ mkdir -p \
     "$DATA_DIR/config/mumble" \
     "$DATA_DIR/config/dnsmasq" \
     "$DATA_DIR/config/takserver" \
+    "$DATA_DIR/config/jitsi/web" \
+    "$DATA_DIR/config/jitsi/prosody/config" \
+    "$DATA_DIR/config/jitsi/prosody/prosody-plugins-custom" \
+    "$DATA_DIR/config/jitsi/jicofo" \
+    "$DATA_DIR/config/jitsi/jvb" \
     "$DATA_DIR/users" \
     "$DATA_DIR/tak" \
     "$DATA_DIR/tak-release"
@@ -66,6 +71,7 @@ else
     ufw allow 8444/tcp  comment "TAKServer cert enrollment"
     ufw allow 64738/tcp comment "Mumble TCP"
     ufw allow 64738/udp comment "Mumble UDP"
+    ufw allow 10000/udp comment "Jitsi JVB WebRTC media"
     # Port 8443 is exposed for ATAK OTA: ATAK's internal trust-store only
     # contains KOMMSca (the TAKServer self-signed CA, present in user.p12 /
     # truststore-tak.p12). nginx on 443 serves a Let's Encrypt cert that ATAK
@@ -100,6 +106,7 @@ if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
         -d "element.${DOMAIN}" \
         -d "ldap.${DOMAIN}" \
         -d "collabora.${DOMAIN}" \
+        -d "meet.${DOMAIN}" \
         ${TAK_DOMAIN:+-d "${TAK_DOMAIN}"} \
         2>&1 | tee /tmp/certbot.log | grep -E "(Congratulations|Certificate|error|Error)" || true
     if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
@@ -346,7 +353,37 @@ cd "$SCRIPT_DIR"
 info "Building Synapse custom image (adds matrix-synapse-ldap3)..."
 docker compose build synapse --quiet
 
-_BASE_SERVICES="nginx postgres redis lldap authelia headwind openvpn synapse mumble nextcloud element-web collabora dnsmasq"
+# Jitsi Meet secrets — auto-generate on first run
+_jitsi_dirty=0
+if ! grep -q "^JICOFO_COMPONENT_SECRET=.\+" "$ENV_FILE" 2>/dev/null; then
+    sed -i "s/^JICOFO_COMPONENT_SECRET=.*/JICOFO_COMPONENT_SECRET=$(openssl rand -hex 16)/" "$ENV_FILE" || \
+        echo "JICOFO_COMPONENT_SECRET=$(openssl rand -hex 16)" >> "$ENV_FILE"
+    _jitsi_dirty=1
+fi
+if ! grep -q "^JICOFO_AUTH_PASS=.\+" "$ENV_FILE" 2>/dev/null; then
+    sed -i "s/^JICOFO_AUTH_PASS=.*/JICOFO_AUTH_PASS=$(openssl rand -hex 16)/" "$ENV_FILE" || \
+        echo "JICOFO_AUTH_PASS=$(openssl rand -hex 16)" >> "$ENV_FILE"
+    _jitsi_dirty=1
+fi
+if ! grep -q "^JVB_AUTH_PASS=.\+" "$ENV_FILE" 2>/dev/null; then
+    sed -i "s/^JVB_AUTH_PASS=.*/JVB_AUTH_PASS=$(openssl rand -hex 16)/" "$ENV_FILE" || \
+        echo "JVB_AUTH_PASS=$(openssl rand -hex 16)" >> "$ENV_FILE"
+    _jitsi_dirty=1
+fi
+if ! grep -q "^JVB_ADVERTISE_IP=.\+" "$ENV_FILE" 2>/dev/null; then
+    _pub_ip=$(curl -fsSL --max-time 5 ifconfig.me 2>/dev/null || true)
+    if [[ -n "$_pub_ip" ]]; then
+        sed -i "s/^JVB_ADVERTISE_IP=.*/JVB_ADVERTISE_IP=${_pub_ip}/" "$ENV_FILE" || \
+            echo "JVB_ADVERTISE_IP=${_pub_ip}" >> "$ENV_FILE"
+        _jitsi_dirty=1
+    else
+        warn "Could not detect public IP — set JVB_ADVERTISE_IP in .env before starting Jitsi"
+    fi
+fi
+[[ $_jitsi_dirty -eq 1 ]] && { set -a; source <(tr -d '\r' < "$ENV_FILE"); set +a; }
+ok "Jitsi Meet secrets ready"
+
+_BASE_SERVICES="nginx postgres redis lldap authelia headwind openvpn synapse mumble nextcloud element-web collabora dnsmasq jitsi-prosody jitsi-jicofo jitsi-jvb jitsi-web"
 info "Building dnsmasq image (split-horizon DNS for VPN clients)..."
 docker compose build dnsmasq --quiet
 

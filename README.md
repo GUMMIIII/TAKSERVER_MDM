@@ -39,6 +39,7 @@ I'll try to respond within a few days. Bigger changes (new services, refactors) 
 | [OpenVPN](https://openvpn.net) | VPN — required for all internal services | — |
 | [Headwind MDM](https://h-mdm.com) | Android MDM — app + config management | **Yes** |
 | [TAKServer](https://tak.gov) | Situational awareness (ATAK / WinTAK) | No* |
+| [Jitsi Meet](https://jitsi.org) | Encrypted video conferencing | **Yes** |
 | [Mumble](https://www.mumble.info) | Low-latency encrypted voice | **Yes** |
 | nginx | Reverse proxy — TLS termination, Authelia gate, VPN enforcement | — |
 | PostgreSQL | Shared database for Headwind, Synapse, Authelia, Nextcloud | — |
@@ -63,12 +64,14 @@ Internet
 │  cloud.domain      → Nextcloud            [no VPN, Authelia] │
 │  collabora.domain  → Collabora Online     [no VPN, WOPI]     │
 │  tak.domain        → TAKServer WebTAK     [no VPN, Authelia*]│
+│  meet.domain       → Jitsi Meet           [VPN + Authelia]   │
 │  element.domain    → Element Web          [VPN + Authelia]   │
 │  matrix.domain     → Matrix / Synapse     [VPN only]         │
 │  mdm.domain        → Headwind MDM         [VPN + Authelia*]  │
 │  ldap.domain       → LLDAP Web UI         [VPN + Authelia*]  │
 │                                                              │
-│  OpenVPN :1194/UDP  Mumble :64738  TAKServer :8089/8443      │
+│  OpenVPN :1194/UDP  Mumble :64738  TAKServer :8089/8443       │
+│  Jitsi JVB :10000/UDP (WebRTC media — public)                │
 └──────────────────────────────────────────────────────────────┘
          ▲                                ▲
          │ HTTPS (no VPN needed)          │ HTTPS (VPN tunnel 10.8.0.0/24)
@@ -277,7 +280,7 @@ TAKSERVER_MDM/
 - TAKServer cert passphrase (`TAK_CERT_PASS`) defaults to `atakatak` — change it
 - Matrix federation is disabled by default (closed deployment)
 - Let's Encrypt renewal runs automatically via Certbot cron job (VPS only)
-- Firewall: `setup_server.sh` opens `22/tcp`, `80/tcp`, `443/tcp`, `1194/udp` (VPN), `8089/tcp` (ATAK/WinTAK TLS), `8443/tcp` (TAKServer direct — ATAK OTA uses the TAKServer-internal `KOMMSca` cert, not the Let's Encrypt cert on `:443`), `8444/tcp` (TAK cert enrollment), `64738/tcp+udp` (Mumble). TAKServer WebTAK / Marti is reachable without VPN via nginx on `:443` (Authelia lldap_admin gate).
+- Firewall: `setup_server.sh` opens `22/tcp`, `80/tcp`, `443/tcp`, `1194/udp` (VPN), `8089/tcp` (ATAK/WinTAK TLS), `8443/tcp` (TAKServer direct — ATAK OTA uses the TAKServer-internal `KOMMSca` cert, not the Let's Encrypt cert on `:443`), `8444/tcp` (TAK cert enrollment), `64738/tcp+udp` (Mumble), `10000/udp` (Jitsi JVB WebRTC media — public; web UI and signaling remain VPN+Authelia-gated). TAKServer WebTAK / Marti is reachable without VPN via nginx on `:443` (Authelia lldap_admin gate).
 - VPN enforcement cannot be bypassed via Authelia — it is enforced at the nginx IP layer
 - All secrets and configs live in `/opt/komms-data/` which is outside the git repository
 

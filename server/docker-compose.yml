@@ -321,6 +321,111 @@ services:
     networks:
       - komms_internal
 
+  # ── Jitsi Meet ──────────────────────────────────────────────────────────────
+  # Four-container Jitsi stack: web frontend, XMPP server (prosody),
+  # conference focus (jicofo), and video bridge (jvb).
+  # Web UI: meet.DOMAIN — VPN-only + Authelia gate (any user).
+  # JVB media: port 10000/UDP publicly exposed — WebRTC requires direct UDP
+  # connectivity. Signaling (prosody) is only reachable via nginx (VPN-gated).
+  jitsi-web:
+    image: jitsi/web:stable
+    container_name: komms_jitsi_web
+    restart: unless-stopped
+    environment:
+      DISABLE_HTTPS: "1"
+      ENABLE_HTTP_REDIRECT: "0"
+      PUBLIC_URL: https://meet.${DOMAIN}
+      XMPP_SERVER: jitsi-prosody
+      XMPP_BOSH_URL_BASE: http://jitsi-prosody:5280
+      XMPP_DOMAIN: meet.${DOMAIN}
+      XMPP_AUTH_DOMAIN: auth.meet.${DOMAIN}
+      XMPP_MUC_DOMAIN: muc.meet.${DOMAIN}
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.${DOMAIN}
+      JICOFO_AUTH_USER: focus
+      ENABLE_AUTH: "0"
+      ENABLE_GUESTS: "1"
+      TZ: UTC
+    volumes:
+      - ${DATA_DIR}/config/jitsi/web:/config
+    networks:
+      - komms_internal
+    depends_on:
+      - jitsi-prosody
+
+  jitsi-prosody:
+    image: jitsi/prosody:stable
+    container_name: komms_jitsi_prosody
+    restart: unless-stopped
+    environment:
+      AUTH_TYPE: internal
+      ENABLE_AUTH: "0"
+      ENABLE_GUESTS: "1"
+      XMPP_DOMAIN: meet.${DOMAIN}
+      XMPP_AUTH_DOMAIN: auth.meet.${DOMAIN}
+      XMPP_GUEST_DOMAIN: guest.meet.${DOMAIN}
+      XMPP_MUC_DOMAIN: muc.meet.${DOMAIN}
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.${DOMAIN}
+      JICOFO_COMPONENT_SECRET: ${JICOFO_COMPONENT_SECRET}
+      JICOFO_AUTH_USER: focus
+      JICOFO_AUTH_PASSWORD: ${JICOFO_AUTH_PASS}
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${JVB_AUTH_PASS}
+      TZ: UTC
+    volumes:
+      - ${DATA_DIR}/config/jitsi/prosody/config:/config
+      - ${DATA_DIR}/config/jitsi/prosody/prosody-plugins-custom:/prosody-plugins-custom
+    networks:
+      - komms_internal
+
+  jitsi-jicofo:
+    image: jitsi/jicofo:stable
+    container_name: komms_jitsi_jicofo
+    restart: unless-stopped
+    environment:
+      AUTH_TYPE: internal
+      ENABLE_AUTH: "0"
+      XMPP_SERVER: jitsi-prosody
+      XMPP_DOMAIN: meet.${DOMAIN}
+      XMPP_AUTH_DOMAIN: auth.meet.${DOMAIN}
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.${DOMAIN}
+      JICOFO_COMPONENT_SECRET: ${JICOFO_COMPONENT_SECRET}
+      JICOFO_AUTH_USER: focus
+      JICOFO_AUTH_PASSWORD: ${JICOFO_AUTH_PASS}
+      JVB_BREWERY_MUC: jvbbrewery
+      TZ: UTC
+    volumes:
+      - ${DATA_DIR}/config/jitsi/jicofo:/config
+    networks:
+      - komms_internal
+    depends_on:
+      - jitsi-prosody
+
+  jitsi-jvb:
+    image: jitsi/jvb:stable
+    container_name: komms_jitsi_jvb
+    restart: unless-stopped
+    ports:
+      - "10000:10000/udp"
+    environment:
+      # Both vars cover old and new jitsi-docker releases
+      DOCKER_HOST_ADDRESS: ${JVB_ADVERTISE_IP}
+      JVB_ADVERTISE_IPS: ${JVB_ADVERTISE_IP}
+      XMPP_SERVER: jitsi-prosody
+      XMPP_DOMAIN: meet.${DOMAIN}
+      XMPP_AUTH_DOMAIN: auth.meet.${DOMAIN}
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.${DOMAIN}
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${JVB_AUTH_PASS}
+      JVB_BREWERY_MUC: jvbbrewery
+      JVB_PORT: "10000"
+      TZ: UTC
+    volumes:
+      - ${DATA_DIR}/config/jitsi/jvb:/config
+    networks:
+      - komms_internal
+    depends_on:
+      - jitsi-prosody
+
   # ── Nextcloud ────────────────────────────────────────────────────────────
   nextcloud:
     image: nextcloud:33-apache

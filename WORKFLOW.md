@@ -34,7 +34,7 @@
 | RAM | 4 GB min · **8 GB min with TAKServer** |
 | Disk | 40 GB min |
 | Root access | required |
-| Open ports | 80, 443, 1194/UDP, 8089, 8443, 8444, 64738 |
+| Open ports | 80, 443, 1194/UDP, 8089, 8443, 8444, 64738, 10000/UDP |
 
 ### Admin Machine
 
@@ -165,6 +165,7 @@ Without VPN:
   tak.domain.com         → TAKServer WebTAK / Marti (Authelia: lldap_admin)
 
 VPN required:
+  meet.domain.com    → Jitsi Meet     (Authelia: any user)
   element.domain.com → Element Web    (Authelia: any user)
   matrix.domain.com  → Matrix/Synapse (no Authelia gate — native clients)
   mdm.domain.com     → Headwind MDM   (Authelia: lldap_admin)
@@ -186,9 +187,10 @@ Direct (no nginx, no VPN — publicly accessible):
 | **Headwind MDM** | `https://mdm.domain.com` | Authelia SSO (lldap_admin) |
 | **LLDAP Admin** | `https://ldap.domain.com` | Authelia SSO (lldap_admin) |
 | **TAKServer** | `https://tak.domain.com` | Authelia SSO (lldap_admin) |
+| **Jitsi Meet** | `https://meet.domain.com` | Authelia SSO |
 | **Mumble** | `domain.com:64738` | Join password from `.env` |
 
-> Element, MDM, and LLDAP are **only reachable with an active VPN** — nginx returns 403 for non-VPN IPs. TAKServer WebTAK (`tak.domain.com` via nginx:443) is accessible without VPN — only Authelia (lldap_admin group) is required.
+> Jitsi Meet, Element, MDM, and LLDAP are **only reachable with an active VPN** — nginx returns 403 for non-VPN IPs. TAKServer WebTAK (`tak.domain.com` via nginx:443) is accessible without VPN — only Authelia (lldap_admin group) is required.
 
 ---
 
