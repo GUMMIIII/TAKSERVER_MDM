@@ -80,11 +80,11 @@ REPO_OWNER="dein-github-username"     # Zeile ~21
 
 ```bash
 # Öffentliches Repository:
-curl -fsSL https://raw.githubusercontent.com/DEIN_USERNAME/TAKSERVER_MDM/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/GUMMIIII/TAKSERVER_MDM/main/install.sh | bash
 
 # Privates Repository (GitHub PAT erforderlich):
 curl -H "Authorization: token DEIN_GITHUB_PAT" \
-     -fsSL https://raw.githubusercontent.com/DEIN_USERNAME/TAKSERVER_MDM/main/install.sh \
+     -fsSL https://raw.githubusercontent.com/GUMMIIII/TAKSERVER_MDM/main/install.sh \
   | GITHUB_PAT=DEIN_GITHUB_PAT bash
 ```
 
