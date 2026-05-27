@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Planned
+- **TAKServer auto-install via `install.sh`** — currently `setup_tak.sh` must be run manually after the main install (see note below). Root cause: TAKServer's Apache Ignite grid takes 3–5 min to initialize after container start; blocking the main installer for that long is impractical. Planned fix: deferred async cert setup or a reliable readiness probe.
+- **Modular installer** — service selection via `whiptail` at install time; Docker Compose profiles so unused services are never started
+- **ARM64 TAKServer build** — auto-detection of architecture in `setup_tak.sh`; Dockerfile for building TAKServer on ARM64 (Raspberry Pi 4/5, cloud ARM instances)
+- **MediaMTX drone video relay** — self-hosted [MediaMTX](https://github.com/bluenviron/mediamtx) instance as a multi-stream relay for drone video feeds into ATAK. Drone controllers (DJI Fly/Pilot 2 or SDK-based) push RTMP/SRT to MediaMTX; TAKServer distributes a Video CoT with the resulting RTSP URL to all connected ATAK clients so they can open the live feed directly. Enables multiple simultaneous drone streams with no TAKServer video-relay overhead.
+- **TAKServer VPN-only mode** — restrict TAKServer ports (8089 CoT, 8443 WebTAK/OTA, 8444 cert enrollment) to VPN subnet only via UFW. OTA update URL (`https://tak.DOMAIN:8443/update`) continues to work because ATAK clients must be on VPN before connecting to TAKServer anyway. New users receive VPN profile + TAK cert package together; no public TAK surface remains. Consideration: 8443 uses TAKServer's self-signed CA (not Let's Encrypt), so OTA must go direct to port 8443, not via nginx — this is already the case in the current setup.
+
 ---
 
 ## [0.0.24] – 2026-05-27
@@ -49,16 +58,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - WORKFLOW.md: removed "deployment mode (VPS / LAN)" from installer prompt list
 - WORKFLOW.de.md: added link to English version; removed "Betriebsmodus (VPS / LAN)" from installer prompt list; added missing `source /opt/komms-data/.env` to password-reset command (without it `$LDAP_ADMIN_PASS` is undefined)
 - README.md: fixed broken `#unreleased` anchor — now links to `CHANGELOG.md#unreleased`
-
----
-
-## [Unreleased]
-
-### Planned
-- **TAKServer auto-install via `install.sh`** — currently `setup_tak.sh` must be run manually after the main install (see note below). Root cause: TAKServer's Apache Ignite grid takes 3–5 min to initialize after container start; blocking the main installer for that long is impractical. Planned fix: deferred async cert setup or a reliable readiness probe.
-- **Modular installer** — service selection via `whiptail` at install time; Docker Compose profiles so unused services are never started
-- **ARM64 TAKServer build** — auto-detection of architecture in `setup_tak.sh`; Dockerfile for building TAKServer on ARM64 (Raspberry Pi 4/5, cloud ARM instances)
-- **MediaMTX drone video relay** — self-hosted [MediaMTX](https://github.com/bluenviron/mediamtx) instance as a multi-stream relay for drone video feeds into ATAK. Drone controllers (DJI Fly/Pilot 2 or SDK-based) push RTMP/SRT to MediaMTX; TAKServer distributes a Video CoT with the resulting RTSP URL to all connected ATAK clients so they can open the live feed directly. Enables multiple simultaneous drone streams with no TAKServer video-relay overhead.
 
 ---
 
