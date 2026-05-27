@@ -58,6 +58,7 @@ All DNS A-records must point to the server IP **before** running the installer. 
 | `mdm.domain.com` | Server IP |
 | `ldap.domain.com` | Server IP |
 | `tak.domain.com` | Server IP |
+| `meet.domain.com` | Server IP |
 
 Wait for DNS propagation (5–60 min), then verify:
 

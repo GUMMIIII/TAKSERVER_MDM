@@ -57,6 +57,7 @@ Ein Wildcard-Record `*.domain.de` + `domain.de` reicht aus.
 | `mdm.domain.de` | VPS-IP |
 | `ldap.domain.de` | VPS-IP |
 | `tak.domain.de` | VPS-IP |
+| `meet.domain.de` | VPS-IP |
 | `collabora.domain.de` | VPS-IP |
 
 DNS-Propagation abwarten (kann 5–60 Min dauern):
