@@ -58,6 +58,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **TAKServer auto-install via `install.sh`** — currently `setup_tak.sh` must be run manually after the main install (see note below). Root cause: TAKServer's Apache Ignite grid takes 3–5 min to initialize after container start; blocking the main installer for that long is impractical. Planned fix: deferred async cert setup or a reliable readiness probe.
 - **Modular installer** — service selection via `whiptail` at install time; Docker Compose profiles so unused services are never started
 - **ARM64 TAKServer build** — auto-detection of architecture in `setup_tak.sh`; Dockerfile for building TAKServer on ARM64 (Raspberry Pi 4/5, cloud ARM instances)
+- **MediaMTX drone video relay** — self-hosted [MediaMTX](https://github.com/bluenviron/mediamtx) instance as a multi-stream relay for drone video feeds into ATAK. Drone controllers (DJI Fly/Pilot 2 or SDK-based) push RTMP/SRT to MediaMTX; TAKServer distributes a Video CoT with the resulting RTSP URL to all connected ATAK clients so they can open the live feed directly. Enables multiple simultaneous drone streams with no TAKServer video-relay overhead.
 
 ---
 
