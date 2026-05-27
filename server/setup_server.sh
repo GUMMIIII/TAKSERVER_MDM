@@ -62,7 +62,7 @@ else
     ufw allow 443/tcp   comment "HTTPS (all web services via nginx)"
     ufw allow "${VPN_PORT:-1194}/udp" comment "OpenVPN"
     ufw allow 8089/tcp  comment "ATAK/WinTAK TLS"
-    ufw allow 8443/tcp  comment "TAKServer OTA direct (self-signed CA, not LE)"
+    ufw allow 8443/tcp  comment "TAKServer OTA direct"
     ufw allow 8444/tcp  comment "TAKServer cert enrollment"
     ufw allow 64738/tcp comment "Mumble TCP"
     ufw allow 64738/udp comment "Mumble UDP"
