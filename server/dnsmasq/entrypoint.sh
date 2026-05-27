@@ -19,9 +19,23 @@ add_dnat() {
 iptables-legacy -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth1 -j MASQUERADE 2>/dev/null || true
 iptables-legacy -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth1 -j MASQUERADE
 
+# Resolve a Docker container name via Docker's embedded DNS (127.0.0.11).
+# Uses getent(1) which is reliable on Alpine/musl; retries until the container
+# is registered in DNS (up to $2 * 2 s).
+# Prints the IP to stdout and returns 0 on success, 1 on timeout.
+resolve_with_retry() {
+    local name="$1" max="${2:-30}" attempt=0 ip=""
+    while [ "$attempt" -lt "$max" ]; do
+        ip=$(getent hosts "$name" 2>/dev/null | awk '{print $1; exit}')
+        [ -n "$ip" ] && { printf '%s' "$ip"; return 0; }
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+    return 1
+}
+
 # ── nginx (port 443 / 80) ────────────────────────────────────────────────────
-NGINX_IP=$(nslookup nginx 127.0.0.11 2>/dev/null | grep '^Address:' | grep -v '127\.0\.0\.11' | awk '{print $2}')
-if [ -n "$NGINX_IP" ]; then
+if NGINX_IP=$(resolve_with_retry nginx 30); then
     add_dnat tcp 443   "$NGINX_IP" 443
     add_dnat tcp 80    "$NGINX_IP" 80
     add_dnat tcp 64738 "$NGINX_IP" 64738
@@ -32,8 +46,7 @@ else
 fi
 
 # ── TAKServer (8089 TLS client / 8443 WebTAK / 8444 cert-enroll / 8446) ─────
-TAK_IP=$(nslookup takserver 127.0.0.11 2>/dev/null | grep '^Address:' | grep -v '127\.0\.0\.11' | awk '{print $2}')
-if [ -n "$TAK_IP" ]; then
+if TAK_IP=$(resolve_with_retry takserver 5); then
     add_dnat tcp 8089 "$TAK_IP" 8089
     add_dnat tcp 8443 "$TAK_IP" 8443
     add_dnat tcp 8444 "$TAK_IP" 8444

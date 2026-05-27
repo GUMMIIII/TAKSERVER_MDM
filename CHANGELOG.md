@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.24] – 2026-05-27
+
+### Fixed
+
+- **`dnsmasq/entrypoint.sh` — DNAT rules never applied on fresh install** — `nslookup` on Alpine/BusyBox outputs `Address 1: <ip>` but the grep pattern was `'^Address:'` (no trailing space or digit), so `NGINX_IP` was always empty and no DNAT rules were inserted into the shared OpenVPN network namespace. VPN clients connecting to `10.8.0.1:443` got `ERR_CONNECTION_REFUSED` because nothing forwarded traffic to the nginx container. Fixed by replacing `nslookup | grep` with `getent hosts` (reliable on Alpine/musl) and adding a 60-second retry loop so transient DNS registration delays at container start are handled gracefully.
+
+---
+
 ## [0.0.23] – 2026-05-27
 
 ### Added
