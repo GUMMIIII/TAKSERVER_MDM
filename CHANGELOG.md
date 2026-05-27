@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.22] – 2026-05-27
+
+### Fixed
+
+- **UFW rule parse error on port 8443** — `setup_server.sh` had a comma inside the UFW comment string (`--comment "TAKServer direct, ATAK OTA"`), causing `ufw allow` to fail silently on fresh installs. Port 8443 was not opened, so ATAK OTA updates failed immediately after install.
+- **UFW rule parse error — apostrophe in comment** — a preceding fix introduced an apostrophe (`don't`) in another UFW comment string, which broke the same parse step on fresh installs before the comma fix landed.
+
+### Documentation
+
+- WORKFLOW.md / WORKFLOW.de.md: removed stale LAN / Homelab column from Prerequisites (LAN mode was removed in v0.0.9)
+- WORKFLOW.md / WORKFLOW.de.md: added port 8444 (TAK cert enrollment) to Prerequisites port list
+- WORKFLOW.md: removed "deployment mode (VPS / LAN)" from installer prompt list
+- WORKFLOW.de.md: added link to English version; removed "Betriebsmodus (VPS / LAN)" from installer prompt list; added missing `source /opt/komms-data/.env` to password-reset command (without it `$LDAP_ADMIN_PASS` is undefined)
+- README.md: fixed broken `#unreleased` anchor — now links to `CHANGELOG.md#unreleased`
+
+---
+
 ## [Unreleased]
 
 ### Planned
@@ -71,7 +88,7 @@ Then on each affected phone: disconnect + reconnect OpenVPN.
 After this release a fresh `install.sh` run produces a deployment that matches the current state on the live test server, end-to-end:
 - nginx with `/update/` Authelia bypass (v0.0.15) **and** UFW 8443 open for ATAK direct (v0.0.19)
 - `webcontent/update/` drop folder auto-created with operator README (v0.0.16)
-- OpenVPN `duplicate-cn` + `mssfix 1400` + `tun-mtu 1500` for stable multi-device + mobile (v0.0.17)
+- OpenVPN `duplicate-cn` + `mssfix 1400` for stable multi-device + mobile (v0.0.17) — `tun-mtu 1500` was part of v0.0.17 but reverted in v0.0.20 due to MTU negotiation failures on some Android clients
 - postgres healthcheck no longer floods FATAL log (v0.0.18)
 - Nextcloud MIME types so `.ovpn` and `.p12` downloads keep their extensions on Android (v0.0.19)
 

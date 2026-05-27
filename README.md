@@ -113,7 +113,7 @@ For a full walkthrough see **[WORKFLOW.md](WORKFLOW.md)**.
 
 TAKServer requires a free registration at [tak.gov](https://tak.gov).
 
-> **Note:** TAKServer setup via `install.sh` is not yet fully automated. The installer detects the ZIP and reports it, but `setup_tak.sh` must be run **manually after the main install completes**. See [roadmap](#unreleased) for details.
+> **Note:** TAKServer setup via `install.sh` is not yet fully automated. The installer detects the ZIP and reports it, but `setup_tak.sh` must be run **manually after the main install completes**. See [roadmap](CHANGELOG.md#unreleased) for details.
 
 ```bash
 # 1. Place the ZIP on the server before or after install.sh:

@@ -27,14 +27,14 @@
 
 ### Server
 
-| Requirement | VPS / Cloud | LAN / Homelab |
-|-------------|-------------|---------------|
-| OS | Ubuntu 22.04 / 24.04 or Debian 12 (64-bit) | same |
-| Architecture | x86_64 | x86_64 or ARM64 (RPi — TAKServer excluded) |
-| RAM | 4 GB min · **8 GB min with TAKServer** | 2 GB min |
-| Disk | 40 GB min | 20 GB min |
-| Root access | required | required |
-| Open ports | 80, 443, 1194/UDP, 8089, 8443, 64738 | same |
+| Requirement | Details |
+|-------------|---------|
+| OS | Ubuntu 22.04 / 24.04 or Debian 12 (64-bit) |
+| Architecture | x86_64 or ARM64 (RPi — TAKServer excluded) |
+| RAM | 4 GB min · **8 GB min with TAKServer** |
+| Disk | 40 GB min |
+| Root access | required |
+| Open ports | 80, 443, 1194/UDP, 8089, 8443, 8444, 64738 |
 
 ### Admin Machine
 
@@ -104,7 +104,7 @@ If the directory or ZIP is not present, TAKServer is skipped and can be added la
 
 The installer prompts interactively for:
 
-- Domain name, deployment mode (VPS / LAN)
+- Domain name
 - Passwords: database, Nextcloud admin, MDM admin, LDAP admin
 - Mumble SuperUser password + join password
 - VPN hostname/port, certificate fields

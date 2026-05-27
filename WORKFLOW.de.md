@@ -1,6 +1,7 @@
 # KOMMS – Workflow: Von der Installation bis zur Nutzung
 
-> **Zielgruppe:** Administratoren, die KOMMS auf einem frischen Server aufsetzen.
+> **Zielgruppe:** Administratoren, die KOMMS auf einem frischen Server aufsetzen.  
+> **English version:** [WORKFLOW.md](WORKFLOW.md)
 
 ---
 
@@ -25,14 +26,14 @@
 
 ### Server
 
-| Anforderung | VPS / Cloud | LAN / Homelab |
-|-------------|-------------|---------------|
-| Betriebssystem | Ubuntu 22.04 / 24.04 oder Debian 12 (64-bit) | gleich |
-| Architektur | x86_64 | x86_64 oder ARM64 (RPi, ohne TAKServer) |
-| RAM | min. 4 GB · **min. 8 GB mit TAKServer** | min. 2 GB |
-| Speicher | min. 40 GB | min. 20 GB |
-| Root-Zugang | erforderlich | gleich |
-| Offene Ports | 80, 443, 1194/udp, 8089, 8443, 64738 | gleich |
+| Anforderung | Details |
+|-------------|---------|
+| Betriebssystem | Ubuntu 22.04 / 24.04 oder Debian 12 (64-bit) |
+| Architektur | x86_64 oder ARM64 (RPi — TAKServer ausgenommen) |
+| RAM | min. 4 GB · **min. 8 GB mit TAKServer** |
+| Speicher | min. 40 GB |
+| Root-Zugang | erforderlich |
+| Offene Ports | 80, 443, 1194/udp, 8089, 8443, 8444, 64738 |
 
 ### Admin-Maschine
 
@@ -102,7 +103,7 @@ Liegt kein ZIP vor, wird TAKServer übersprungen und kann später nachgerüstet 
 ### 3.4 Abgefragte Einstellungen
 
 Der Installer fragt interaktiv:
-- Domain, Betriebsmodus (VPS / LAN)
+- Domain
 - Passwörter (DB, Nextcloud-Admin, MDM-Admin, LDAP-Admin)
 - Mumble SuperUser-Passwort + Join-Passwort
 - VPN-Hostname/Port, Zertifikatsfelder
@@ -379,6 +380,7 @@ docker compose restart nginx        # nginx nach Config-Änderungen
 ```bash
 NEW_PASS=$(openssl rand -base64 18 | tr -d '=+/' | head -c 20)
 cd /opt/komms/server
+source /opt/komms-data/.env
 docker compose exec lldap /app/lldap_set_password \
     --base-url http://127.0.0.1:17170 \
     --admin-password "$LDAP_ADMIN_PASS" \
