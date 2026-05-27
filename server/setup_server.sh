@@ -91,11 +91,34 @@ step "[2/7] TLS certificate"
 CERT_DIR="$DATA_DIR/config/nginx/certs"
 mkdir -p "$CERT_DIR"
 
-if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
-    info "Obtaining Let's Encrypt certificate for ${DOMAIN} and subdomains..."
+_cert_file="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+_need_cert=0
+
+if [[ ! -f "$_cert_file" ]]; then
+    _need_cert=1
+else
+    # Expand if any required domain is missing from the cert SAN list
+    _cert_sans=$(openssl x509 -in "$_cert_file" -noout -text 2>/dev/null \
+        | grep -o 'DNS:[^,]*' | sed 's/DNS://;s/ //' || true)
+    for _check_d in "${DOMAIN}" "auth.${DOMAIN}" "mdm.${DOMAIN}" "cloud.${DOMAIN}" \
+                    "matrix.${DOMAIN}" "element.${DOMAIN}" "ldap.${DOMAIN}" \
+                    "collabora.${DOMAIN}" "meet.${DOMAIN}" ${TAK_DOMAIN:+"${TAK_DOMAIN}"}; do
+        if ! echo "$_cert_sans" | grep -qxF "$_check_d"; then
+            info "Certificate missing ${_check_d} — expanding..."
+            _need_cert=1
+            break
+        fi
+    done
+    [[ $_need_cert -eq 0 ]] && ok "Let's Encrypt certificate already covers all required domains"
+fi
+
+if [[ $_need_cert -eq 1 ]]; then
     if ! command -v certbot &>/dev/null; then
         apt-get install -y -qq certbot
     fi
+    # --standalone needs port 80 free; stop nginx if already running
+    cd "$SCRIPT_DIR"
+    docker compose stop nginx >/dev/null 2>&1 || true
     certbot certonly --standalone --non-interactive --agree-tos --expand \
         -m "${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL not set in .env}" \
         -d "${DOMAIN}" \
@@ -109,12 +132,11 @@ if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
         -d "meet.${DOMAIN}" \
         ${TAK_DOMAIN:+-d "${TAK_DOMAIN}"} \
         2>&1 | tee /tmp/certbot.log | grep -E "(Congratulations|Certificate|error|Error)" || true
-    if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+    docker compose start nginx >/dev/null 2>&1 || true
+    if [[ ! -f "$_cert_file" ]]; then
         err "certbot failed — check /tmp/certbot.log for details."
     fi
-    ok "Let's Encrypt certificate obtained"
-else
-    ok "Let's Encrypt certificate already exists"
+    ok "Let's Encrypt certificate obtained/expanded"
 fi
 cp "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" "$CERT_DIR/komms.crt"
 cp "/etc/letsencrypt/live/${DOMAIN}/privkey.pem"   "$CERT_DIR/komms.key"
@@ -353,28 +375,35 @@ cd "$SCRIPT_DIR"
 info "Building Synapse custom image (adds matrix-synapse-ldap3)..."
 docker compose build synapse --quiet
 
-# Jitsi Meet secrets — auto-generate on first run
+# Jitsi Meet secrets — auto-generate on first run.
+# _write_secret: sed returns 0 even without a match, so || never triggers.
+# Instead: check explicitly whether the key is present, then sed or append.
+_write_secret() {
+    local key="$1" val="$2"
+    if grep -q "^${key}=" "$ENV_FILE"; then
+        sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+    else
+        echo "${key}=${val}" >> "$ENV_FILE"
+    fi
+}
+
 _jitsi_dirty=0
-if ! grep -q "^JICOFO_COMPONENT_SECRET=.\+" "$ENV_FILE" 2>/dev/null; then
-    sed -i "s/^JICOFO_COMPONENT_SECRET=.*/JICOFO_COMPONENT_SECRET=$(openssl rand -hex 16)/" "$ENV_FILE" || \
-        echo "JICOFO_COMPONENT_SECRET=$(openssl rand -hex 16)" >> "$ENV_FILE"
+if [[ -z "${JICOFO_COMPONENT_SECRET:-}" ]]; then
+    _write_secret JICOFO_COMPONENT_SECRET "$(openssl rand -hex 16)"
     _jitsi_dirty=1
 fi
-if ! grep -q "^JICOFO_AUTH_PASS=.\+" "$ENV_FILE" 2>/dev/null; then
-    sed -i "s/^JICOFO_AUTH_PASS=.*/JICOFO_AUTH_PASS=$(openssl rand -hex 16)/" "$ENV_FILE" || \
-        echo "JICOFO_AUTH_PASS=$(openssl rand -hex 16)" >> "$ENV_FILE"
+if [[ -z "${JICOFO_AUTH_PASS:-}" ]]; then
+    _write_secret JICOFO_AUTH_PASS "$(openssl rand -hex 16)"
     _jitsi_dirty=1
 fi
-if ! grep -q "^JVB_AUTH_PASS=.\+" "$ENV_FILE" 2>/dev/null; then
-    sed -i "s/^JVB_AUTH_PASS=.*/JVB_AUTH_PASS=$(openssl rand -hex 16)/" "$ENV_FILE" || \
-        echo "JVB_AUTH_PASS=$(openssl rand -hex 16)" >> "$ENV_FILE"
+if [[ -z "${JVB_AUTH_PASS:-}" ]]; then
+    _write_secret JVB_AUTH_PASS "$(openssl rand -hex 16)"
     _jitsi_dirty=1
 fi
-if ! grep -q "^JVB_ADVERTISE_IP=.\+" "$ENV_FILE" 2>/dev/null; then
+if [[ -z "${JVB_ADVERTISE_IP:-}" ]]; then
     _pub_ip=$(curl -fsSL --max-time 5 ifconfig.me 2>/dev/null || true)
     if [[ -n "$_pub_ip" ]]; then
-        sed -i "s/^JVB_ADVERTISE_IP=.*/JVB_ADVERTISE_IP=${_pub_ip}/" "$ENV_FILE" || \
-            echo "JVB_ADVERTISE_IP=${_pub_ip}" >> "$ENV_FILE"
+        _write_secret JVB_ADVERTISE_IP "${_pub_ip}"
         _jitsi_dirty=1
     else
         warn "Could not detect public IP — set JVB_ADVERTISE_IP in .env before starting Jitsi"
