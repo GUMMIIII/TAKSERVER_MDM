@@ -132,6 +132,7 @@ echo -e "    ${CYAN}mumble.${DOMAIN}${NC}"
 echo -e "    ${CYAN}tak.${DOMAIN}${NC}"
 echo -e "    ${CYAN}ldap.${DOMAIN}${NC}"
 echo -e "    ${CYAN}collabora.${DOMAIN}${NC}"
+echo -e "    ${CYAN}meet.${DOMAIN}${NC}"
 echo -e "  ${YELLOW}(Or use a wildcard: *.${DOMAIN} + ${DOMAIN})${NC}"
 echo ""
 if ! prompt_yn "Are all DNS records live and pointing to this server?" "n"; then
@@ -468,6 +469,7 @@ _chk "Matrix"        "https://matrix.${DOMAIN}/_matrix/client/versions"
 _chk "Element Web"   "https://element.${DOMAIN}/"
 
 _chk_port "Mumble" "mumble.${DOMAIN}" 64738
+_chk "Jitsi Meet"    "https://meet.${DOMAIN}/"
 # TAKServer reachable via nginx (all paths on tak.DOMAIN, no direct port exposure needed).
 [[ "$SETUP_TAK" == "true" ]] && _chk "TAKServer" "https://tak.${DOMAIN}/"
 
@@ -492,6 +494,7 @@ printf "  %-18s %-44s %s\n" "Element Web"   "https://element.${DOMAIN}"    "via 
 printf "  %-18s %-44s %s\n" "Matrix"        "https://matrix.${DOMAIN}"     "(Element / ATAK / Android app)"
 printf "  %-18s %-44s %s\n" "LLDAP Admin"   "https://ldap.${DOMAIN}"       "admin  /  ${LDAP_ADMIN_PASS}"
 printf "  %-18s %-44s %s\n" "Mumble"        "mumble.${DOMAIN}:64738"       "SuperUser  /  ${MUMBLE_PASS}"
+printf "  %-18s %-44s %s\n" "Jitsi Meet"    "https://meet.${DOMAIN}"       "via LLDAP credentials (VPN required)"
 [[ "$SETUP_TAK" == "true" ]] && \
 printf "  %-18s %-44s %s\n" "TAKServer"     "https://tak.${DOMAIN}"        "Authelia SSO (lldap_admin group)"
 
